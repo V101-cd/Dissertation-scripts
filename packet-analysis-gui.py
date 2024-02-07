@@ -10,6 +10,8 @@ from PyQt6.QtWidgets import (
     QStackedLayout,
     QVBoxLayout,
     QWidget,
+    QTableWidget,
+    QTableWidgetItem
 )
 
 class FrameWindow(QWidget):
@@ -17,11 +19,15 @@ class FrameWindow(QWidget):
     This "window" is a QWidget. If it has no parent, it
     will appear as a free-floating window as we want.
     """
-    def __init__(self):
+    def __init__(self, packet_name, frame):
         super().__init__()
+        self.packet_name = packet_name
+        self.frame = frame
+        
+        self.setWindowTitle(self.packet_name)
+        
         layout = QVBoxLayout()
-        self.label = QLabel("Ethernet frame")
-        layout.addWidget(self.label)
+        layout.addWidget(frame)
         self.setLayout(layout)
 
 class MainWindow(QMainWindow):
@@ -44,9 +50,11 @@ class MainWindow(QMainWindow):
         # label_red.setStyleSheet('QLabel{background-color:red}')
         # self.stacklayout.addWidget(label_red)
         
+        packet_info = ['de:ad:be:ef:00:01', 'ff:ff:ff:ff:ff:ff', 2048]
+        
         btn = QPushButton("Ethernet")
         # btn.pressed.connect(self.activate_tab_1)
-        btn.pressed.connect(self.show_ethernet_frame)
+        btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
         button_layout.addWidget(btn)
         label_red = QLabel()
         label_red.setStyleSheet('QLabel{background-color:none}')
@@ -79,9 +87,18 @@ class MainWindow(QMainWindow):
     def activate_tab_3(self):
         self.stacklayout.setCurrentIndex(2)
         
-    def show_ethernet_frame(self):
-        self.w = FrameWindow()
-        self.w.resize(300,100)
+    def show_ethernet_frame(self, packet_name, packet_info):
+        headers_grid = QTableWidget(1, 5)
+        headers_grid.setWordWrap(True)
+        headers_grid.setHorizontalHeaderLabels(["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"])
+        headers_grid.setVerticalHeaderLabels([""])
+        for i in range(2):
+            headers_grid.setItem(0,i,QTableWidgetItem(str(packet_info[i])))
+        headers_grid.setItem(0,2,QTableWidgetItem(hex(packet_info[2])))
+        headers_grid.setItem(0,3,QTableWidgetItem(str("data")))
+        headers_grid.setItem(0,4,QTableWidgetItem(str("CRC missing")))
+        self.w = FrameWindow(packet_name, headers_grid)
+        self.w.resize(550,150)
         self.w.show()
 
 
