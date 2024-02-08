@@ -2,7 +2,7 @@
 
 import datetime
 import dpkt
-from dpkt.compat import compat_ord
+# from dpkt.compat import compat_ord
 import socket
 
 import sys
