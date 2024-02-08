@@ -1,5 +1,5 @@
 import sys
-
+import copy
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication,
@@ -44,12 +44,13 @@ class draw_frame():
         self.num_cols = num_cols
         self.num_rows = num_rows+1
         self.headers = headers
-        if bits == True:
+        self.bits = bits
+        if self.bits == True:
             self.datatype = "Bits"
         else:
             self.datatype = "Bytes"
         
-        self.frame =  QTableWidget(self.num_rows, self.num_cols)
+        self.frame = QTableWidget(self.num_rows, self.num_cols)
         self.frame.setWordWrap(True)
         self.frame.setHorizontalHeaderLabels(self.headers)
         self.frame.setVerticalHeaderLabels([self.datatype, ""])
@@ -58,7 +59,20 @@ class draw_frame():
         # self.frame.wordWrap()
         # self.frame.resizeColumnsToContents()
         # self.frame.resizeRowsToContents()
-            
+    def __deepcopy__(self, memodict={}):
+        new_frame = draw_frame(self.num_cols, self.num_rows, self.headers, self.bits)
+        new_frame.__dict__.update(self.__dict__)
+        new_frame.num_cols = copy.deepcopy(self.num_cols, memodict)
+        new_frame.num_rows = copy.deepcopy(self.num_rows, memodict)
+        new_frame.headers = copy.deepcopy(self.headers, memodict)
+        new_frame.bits = copy.deepcopy(self.bits, memodict)
+        new_frame.datatype = copy.deepcopy(self.datatype, memodict)
+        new_frame.frame = QTableWidget(new_frame.num_rows, new_frame.num_cols)
+        new_frame.frame.setWordWrap(True)
+        new_frame.frame.setHorizontalHeaderLabels(new_frame.headers)
+        new_frame.frame.setVerticalHeaderLabels([new_frame.datatype, ""])
+        return new_frame
+     
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -119,36 +133,38 @@ class MainWindow(QMainWindow):
         self.stacklayout.setCurrentIndex(2)
         
     def show_ethernet_frame(self, packet_name, packet_info):
-             
-        binary_frame = draw_frame(5,1,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"], bits=False).frame
-        binary_frame.setItem(0,0,QTableWidgetItem(str(int(6))))
-        binary_frame.setItem(0,1,QTableWidgetItem(str(int(6))))
-        binary_frame.setItem(0,2,QTableWidgetItem(str(int(2))))
-        binary_frame.setItem(0,3,QTableWidgetItem(str(len(packet_info[3]))))
-        binary_frame.setItem(0,4,QTableWidgetItem(str(int(4))))
-        for i in range(2):
-            binary_frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
-        binary_frame.setItem(1,2,QTableWidgetItem(packet_info[2]))
-        binary_frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
-        binary_frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
+        
+        cols = 5
+        rows = 1
+        ethernet_frame = draw_frame(cols,rows,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"], bits=False)    
+        bits = [6,6,2,len(packet_info[3]),4]
+        
+        binary_frame = copy.deepcopy(ethernet_frame)
+        print("bin ", id(binary_frame.frame))
+        
+        for i in range(cols):
+            binary_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
+        for i in range(rows+1):
+            binary_frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
+        binary_frame.frame.setItem(1,2,QTableWidgetItem(packet_info[2]))
+        binary_frame.frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
+        binary_frame.frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
 
-        processed_frame = draw_frame(5,1,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"], bits=False).frame
-        processed_frame.setItem(0,0,QTableWidgetItem(str(int(6))))
-        processed_frame.setItem(0,1,QTableWidgetItem(str(int(6))))
-        processed_frame.setItem(0,2,QTableWidgetItem(str(int(2))))
-        processed_frame.setItem(0,3,QTableWidgetItem(str(len(packet_info[3]))))
-        processed_frame.setItem(0,4,QTableWidgetItem(str(int(4))))
-        for i in range(2):
-            processed_frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
-        processed_frame.setItem(1,2,QTableWidgetItem(str("IPv4")))
-        processed_frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
-        processed_frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
+        processed_frame = copy.deepcopy(ethernet_frame)
+        print("proc ", id(processed_frame.frame))
+        for i in range(cols):
+            processed_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
+        for i in range(rows+1):
+            processed_frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
+        processed_frame.frame.setItem(1,2,QTableWidgetItem(str("IPv4")))
+        processed_frame.frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
+        processed_frame.frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
        
-        self.w = FrameWindow(packet_name, binary_frame, processed_frame)
+        self.w = FrameWindow(packet_name, binary_frame.frame, processed_frame.frame)
         self.w.resize(550,150)
         self.w.show()
 
-    def show_TCP_frame(self, packet_name, packet_info):
+    def show_UDP_frame(self, packet_name, packet_info):
              
         binary_frame = draw_frame(5,1,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"]).frame
         for i in range(2):
