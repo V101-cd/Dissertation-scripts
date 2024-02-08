@@ -7,11 +7,13 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QRadioButton,
+    QButtonGroup,
     QStackedLayout,
     QVBoxLayout,
     QWidget,
     QTableWidget,
-    QTableWidgetItem
+    QTableWidgetItem,
 )
 
 class FrameWindow(QWidget):
@@ -19,16 +21,35 @@ class FrameWindow(QWidget):
     This "window" is a QWidget. If it has no parent, it
     will appear as a free-floating window as we want.
     """
-    def __init__(self, packet_name, frame):
+    def __init__(self, packet_name, binary_frame, processed_frame):
         super().__init__()
         self.packet_name = packet_name
-        self.frame = frame
-        
+        self.binary_frame = binary_frame
+        self.processed_frame = processed_frame
+
         self.setWindowTitle(self.packet_name)
         
-        layout = QVBoxLayout()
-        layout.addWidget(frame)
-        self.setLayout(layout)
+        self.layout = QVBoxLayout()
+        
+        self.layout.addWidget(QLabel("Binary"))
+        self.layout.addWidget(self.binary_frame)
+        self.layout.addWidget(QLabel("Processed data"))
+        self.layout.addWidget(self.processed_frame)
+        self.setLayout(self.layout)
+        
+
+class draw_frame():
+    def __init__(self, num_cols, num_rows, headers=[]):
+        super().__init__()
+        self.num_cols = num_cols
+        self.num_rows = num_rows
+        self.headers = headers
+        
+        self.frame =  QTableWidget(self.num_rows, self.num_cols)
+        self.frame.setWordWrap(True)
+        self.frame.setHorizontalHeaderLabels(self.headers)
+        self.frame.setVerticalHeaderLabels([""])
+            
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -56,9 +77,9 @@ class MainWindow(QMainWindow):
         # btn.pressed.connect(self.activate_tab_1)
         btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
         button_layout.addWidget(btn)
-        label_red = QLabel()
-        label_red.setStyleSheet('QLabel{background-color:none}')
-        self.stacklayout.addWidget(label_red)
+        label_ethernet = QLabel()
+        label_ethernet.setStyleSheet('QLabel{background-color:none}')
+        self.stacklayout.addWidget(label_ethernet)
 
         btn = QPushButton("green")
         btn.pressed.connect(self.activate_tab_2)
@@ -88,16 +109,23 @@ class MainWindow(QMainWindow):
         self.stacklayout.setCurrentIndex(2)
         
     def show_ethernet_frame(self, packet_name, packet_info):
-        headers_grid = QTableWidget(1, 5)
-        headers_grid.setWordWrap(True)
-        headers_grid.setHorizontalHeaderLabels(["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"])
-        headers_grid.setVerticalHeaderLabels([""])
+             
+        binary_frame = draw_frame(5,1,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"]).frame
         for i in range(2):
-            headers_grid.setItem(0,i,QTableWidgetItem(str(packet_info[i])))
-        headers_grid.setItem(0,2,QTableWidgetItem(hex(packet_info[2])))
-        headers_grid.setItem(0,3,QTableWidgetItem(str("data")))
-        headers_grid.setItem(0,4,QTableWidgetItem(str("CRC missing")))
-        self.w = FrameWindow(packet_name, headers_grid)
+            binary_frame.setItem(0,i,QTableWidgetItem(str(packet_info[i])))
+        binary_frame.setItem(0,2,QTableWidgetItem(hex(packet_info[2])))
+        binary_frame.setItem(0,3,QTableWidgetItem(str("data")))
+        binary_frame.setItem(0,4,QTableWidgetItem(str("CRC missing")))
+
+        processed_frame = draw_frame(5,1,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"]).frame
+        for i in range(2):
+            processed_frame.setItem(0,i,QTableWidgetItem(str(packet_info[i])))
+        processed_frame.setItem(0,2,QTableWidgetItem(str("IPv4")))
+        processed_frame.setItem(0,3,QTableWidgetItem(str("data")))
+        processed_frame.setItem(0,4,QTableWidgetItem(str("CRC missing")))
+       
+        # self.w = FrameWindow(packet_name, headers_grid, processed_headers_grid)
+        self.w = FrameWindow(packet_name, binary_frame, processed_frame)
         self.w.resize(550,150)
         self.w.show()
 
