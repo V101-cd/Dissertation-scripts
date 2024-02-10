@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
         bits = [6,6,2,len(packet_info[3]),4]
         
         binary_frame = copy.deepcopy(ethernet_frame)
-        print("bin ", id(binary_frame.frame))
+        # print("bin ", id(binary_frame.frame))
         
         for i in range(cols):
             binary_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow):
         binary_frame.frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
 
         processed_frame = copy.deepcopy(ethernet_frame)
-        print("proc ", id(processed_frame.frame))
+        # print("proc ", id(processed_frame.frame))
         for i in range(cols):
             processed_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
         for i in range(rows+1):
@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         processed_frame.frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
        
         self.w = FrameWindow(packet_name, binary_frame.frame, processed_frame.frame)
-        self.w.resize(550,150)
+        self.w.resize(565,280)
         self.w.show()
 
     def show_UDP_frame(self, packet_name, packet_info):
