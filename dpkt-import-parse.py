@@ -60,7 +60,7 @@ def print_packets(pcap):
         network_data = eth.data.__bytes__
         transport_data = eth.data.data.__bytes__
         
-        print('Ethernet Frame: ', readable_mac_addr(dst), readable_mac_addr(src), hex(eth.type), data_link_data, network_data, transport_data)
+        print('Ethernet Frame: ', readable_mac_addr(dst), readable_mac_addr(src), hex(eth.type), eth.data.__bytes__)
 
         # Make sure the Ethernet data contains an IP packet
         if not isinstance(eth.data, dpkt.ip.IP):
