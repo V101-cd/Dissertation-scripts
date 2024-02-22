@@ -1,8 +1,7 @@
 import datetime
 import sys
-# sys.path.insert(1,'python-libpcap-master/pylibpcap')
-# import pylibpcap
-from pylibpcap.pcap import rpcap
+import pylibpcap
+# from pylibpcap.pcap import rpcap
 
 input_pcaps = []
 # libpcap.config(LIBPCAP=None) ##change to LIBPCAP="tcpdump" and see if it makes a difference
@@ -52,6 +51,7 @@ def print_packets(pcap_name, pcap):
     print("Packet ", pcap_name, " : ", pcap)
 def libpcap_read_pcap(pcap_to_read):
     try:
+        # print("I'm reading!!!!")
         # for ts, pkt in dpkt.pcap.Reader(open(pcap, 'rb')):
         #     # print(f"{ts}: {pkt}")
         #     print_packets(pkt)
@@ -60,14 +60,13 @@ def libpcap_read_pcap(pcap_to_read):
         #     pcap = "hello"
         #     print_packets(packet_num, pcap)
         #     packet_num += 1
-        
-        
-        for len, t, pkt in rpcap(pcap_to_read):
-            print(packet_num)
-            print("Buf length:", len)
-            print("Time:", t)
-            print("Buf:", pkt)
-            packet_num += 1
+        for len, t, pkt in pylibpcap.rpcap(pcap_to_read):
+            if packet_num <= 100: #restrict to 100 packets to avoid flooding the terminal
+                print("Packet: ",packet_num)
+                print("Buf length: ", len)
+                print("Time: ", t)
+                print("Buf: ", pkt)
+                packet_num += 1
     except:
         print(f"File {pcap_to_read} not found. Aborting.\n")
         return
