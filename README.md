@@ -5,3 +5,4 @@ Can only run on Linux
   - to run: `source env/bin/activate` (to activate the venv)
   - if you need to install python-libpcap: `pip3 install python-libpcap`
   - to run: cd into the folder where the tool is, then `python libpcap-parser.py [name of pcaps]`
+  - to end venv session: `deactivate`
