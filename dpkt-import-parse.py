@@ -2,7 +2,7 @@
 
 import datetime
 import dpkt
-from dpkt.compat import compat_ord
+# from dpkt.compat import compat_ord
 import socket
 
 import sys
@@ -18,7 +18,11 @@ def mac_addr(address):
        Returns:
            str: Printable/readable MAC address
     """
-    return ':'.join('%02x' % compat_ord(b) for b in address)
+    # return ':'.join('%02x' % compat_ord(b) for b in address)
+    return bytearray(address).hex()
+
+def readable_mac_addr(address):
+    return ':'.join(address[i:i+2] for i in range (0, len(address), 2))
 
 def inet_to_str(inet):
     """Convert inet object to a string
@@ -49,7 +53,14 @@ def print_packets(pcap):
 
         # Unpack the Ethernet frame (mac src/dst, ethertype)
         eth = dpkt.ethernet.Ethernet(buf)
-        print('Ethernet Frame: ', mac_addr(eth.src), mac_addr(eth.dst), eth.type)
+        src = mac_addr(eth.src)
+        dst = mac_addr(eth.dst)
+        # print('Ethernet Frame (binary): ', dst, src, eth.type, bytearray(eth.data).hex())
+        data_link_data = eth.__bytes__
+        network_data = eth.data.__bytes__
+        transport_data = eth.data.data.__bytes__
+        
+        print('Ethernet Frame: ', readable_mac_addr(dst), readable_mac_addr(src), hex(eth.type), eth.data.__bytes__)
 
         # Make sure the Ethernet data contains an IP packet
         if not isinstance(eth.data, dpkt.ip.IP):
