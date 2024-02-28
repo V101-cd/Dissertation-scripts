@@ -28,40 +28,52 @@ def process_packets(fname):
 
 def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
     ethh= ethheader.read(pktbuf, 0)
-    if ethh.ethtype != 0x0800: return None		# ignore non-ipv4 packets
-    iph = ip4header.read(pktbuf, ETHHDRLEN)
-    if not iph: return					# returns None if it doesn't look like an IPv4 packet
-    if iph.proto == UDP_PROTO: 
-        udph = udpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
-        # if udph.dstport == 53: print('DNS packet')
-        udp_key = (udph.srcport, udph.dstport)
-        add_to_stream(packet_num, pktbuf, udp_key, UDP_CONNECTIONDICT)
-        # return
-    if iph.proto != TCP_PROTO: return			# ignore
-    tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
-    if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
-    datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
-    # print (socket.inet_ntoa(iph.srcaddrb), tcph.dstport, datalen)
-    # if iph.srcaddrb == LOCALADDRB:			# source address is local endpoint
-    localport   = tcph.srcport
-    remoteport  = tcph.dstport
-    remoteaddrb = iph.dstaddrb
-        # upstream    = True
-    # else:
-    #     localport   = tcph.dstport
-    #     remoteaddrb = iph.srcaddrb
-    #     remoteport  = tcph.srcport
-        # upstream    = False
-    tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
-    # if tcp_key in TCP_CONNECTIONDICT:
-    #     TCP_CONNECTIONDICT[tcp_key].append([packet_num, pktbuf])
-    # else:
-    #     TCP_CONNECTIONDICT[tcp_key] = [[packet_num, pktbuf]]
-    add_to_stream(packet_num, pktbuf, tcp_key, TCP_CONNECTIONDICT)
+    eth_key = (ethh.dstaddr, ethh.srcaddr, ethh.ethtype)
+    add_to_stream(packet_num, pktbuf, eth_key, ETHERNET_CONNECTIONDICT)
+    match ethh.ethtype:
+        case 0x0800:
+            iph = ip4header.read(pktbuf, ETHHDRLEN)
+            if not iph: return					# returns None if it doesn't look like an IPv4 packet
+            if iph.proto == UDP_PROTO: 
+                udph = udpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
+                # if udph.dstport == 53: print('DNS packet')
+                udp_key = (udph.srcport, udph.dstport)
+                add_to_stream(packet_num, pktbuf, udp_key, UDP_CONNECTIONDICT)
+                # return
+            if iph.proto != TCP_PROTO: return			# ignore
+            tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
+            if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
+            datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
+            # print (socket.inet_ntoa(iph.srcaddrb), tcph.dstport, datalen)
+            # if iph.srcaddrb == LOCALADDRB:			# source address is local endpoint
+            localport   = tcph.srcport
+            remoteport  = tcph.dstport
+            remoteaddrb = iph.dstaddrb
+                # upstream    = True
+            # else:
+            #     localport   = tcph.dstport
+            #     remoteaddrb = iph.srcaddrb
+            #     remoteport  = tcph.srcport
+                # upstream    = False
+            tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
+            # if tcp_key in TCP_CONNECTIONDICT:
+            #     TCP_CONNECTIONDICT[tcp_key].append([packet_num, pktbuf])
+            # else:
+            #     TCP_CONNECTIONDICT[tcp_key] = [[packet_num, pktbuf]]
+            add_to_stream(packet_num, pktbuf, tcp_key, TCP_CONNECTIONDICT)
 
 
-    ipv4_key = (iph.srcaddrb, iph.dstaddrb)
-    add_to_stream(packet_num, pktbuf, ipv4_key, IPV4_CONNECTIONDICT)
+            ipv4_key = (iph.srcaddrb, iph.dstaddrb)
+            add_to_stream(packet_num, pktbuf, ipv4_key, IPV4_CONNECTIONDICT)
+
+        case 0x86DD:
+            ip6h = ip6header.read(pktbuf, ETHHDRLEN)
+            ipv6_key = (ip6h.srcaddrb, ip6h.dstaddrb)
+            add_to_stream(packet_num, pktbuf, ipv6_key, IPV6_CONNECTIONDICT)
+            print(ip6h.trafficclassfield)
+        # case ARP_PROTO:
+            # arp_key = () ##identify if request (opcode = 1) or reply (opcode=2)
+        case other: return None		# ignore non-ipv4 packets
 
 def add_to_stream(packet_num, pktbuf, key, connectiondict):
     if key in connectiondict:
@@ -87,6 +99,12 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
             case "IPv4":
                 (laddrb, raddrb) = key
                 print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
+            case "IPv6":
+                (laddrb, raddrb) = key
+                print('\n({},{}): {} packets'.format(laddrb, raddrb, len(d[key])))
+            case "Ethernet":
+                (laddrb, raddrb, ptype) = key
+                print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
             # print(CONNECTIONDICT[key[:5]])
         # packet_count += len(d[key])
     # print(CONNECTIONDICT[(socket.inet_aton('192.252.206.25'), 443, socket.inet_aton('192.168.4.5'), 62964)])
@@ -95,6 +113,8 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
 
 
 process_packets(FILENAME)
-dumpdict(TCP_CONNECTIONDICT, "TCP")
-dumpdict(UDP_CONNECTIONDICT, "UDP")
-dumpdict(IPV4_CONNECTIONDICT, "IPv4")
+# dumpdict(TCP_CONNECTIONDICT, "TCP")
+# dumpdict(UDP_CONNECTIONDICT, "UDP")
+# dumpdict(IPV4_CONNECTIONDICT, "IPv4")
+dumpdict(ETHERNET_CONNECTIONDICT, "Ethernet")
+dumpdict(IPV6_CONNECTIONDICT, "IPv6")
