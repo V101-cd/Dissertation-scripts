@@ -59,6 +59,28 @@ class ethheader:
         
     def write(self, buf : bytearray, bufstart):
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
+
+class arpheader:
+    def __init__(self):
+        self.proto_type = None
+        self.opcode = None
+        self.srcmac = None
+        self.proto_src_addr = None
+        self.dstmac = None
+        self.proto_dst_addr = None
+        self.isgratuituous = False
+    
+    @staticmethod
+    def read(buf: bytes, bufstart):
+        arphdr = arpheader()
+        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addr, arphdr.dstmac, arphdr.proto_dst_addr) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        arphdr.srcmac = bytearray(arphdr.srcmac).hex()
+        arphdr.srcmac = ':'.join(arphdr.srcmac[i:i+2] for i in range (0, len(arphdr.srcmac), 2))
+        arphdr.dstmac = bytearray(arphdr.dstmac).hex()
+        arphdr.dstmac = ':'.join(arphdr.dstmac[i:i+2] for i in range (0, len(arphdr.dstmac), 2))
+        if arphdr.dstmac == 'ff:ff:ff:ff:ff:ff':
+            arphdr.isgratuituous = True
+        return arphdr
             
 DONTFRAG  = 0x2
 MOREFRAGS = 0x1
