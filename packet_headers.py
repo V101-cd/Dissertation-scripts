@@ -65,15 +65,15 @@ class arpheader:
         self.proto_type = None
         self.opcode = None
         self.srcmac = None
-        self.proto_src_addr = None
+        self.proto_src_addrb = None
         self.dstmac = None
-        self.proto_dst_addr = None
+        self.proto_dst_addrb = None
         self.isgratuituous = False
     
     @staticmethod
     def read(buf: bytes, bufstart):
         arphdr = arpheader()
-        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addr, arphdr.dstmac, arphdr.proto_dst_addr) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
         arphdr.srcmac = bytearray(arphdr.srcmac).hex()
         arphdr.srcmac = ':'.join(arphdr.srcmac[i:i+2] for i in range (0, len(arphdr.srcmac), 2))
         arphdr.dstmac = bytearray(arphdr.dstmac).hex()
