@@ -8,16 +8,14 @@ from pylibpcap.pcap import rpcap
 import socket
 import struct
 from packet_headers import *
-from stream_dictionaries import *
+from stream_dictionaries import connections
 # from icecream import ic		# useful debugging tool, but optional
 
-FILENAME='3MWPi_wireless-router_1.pcap'
+FILENAME=''
 INPUT_PCAPS= []
 
 # LOCALADDR='192.168.4.5'	# the client IP address
 # LOCALADDRB = socket.inet_aton(LOCALADDR)
-
-PACKET_COUNT = 0
     
 def process_packets(fname):
     global PACKET_COUNT
@@ -30,7 +28,7 @@ def process_packets(fname):
 def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
     ethh= ethheader.read(pktbuf, 0)
     eth_key = (ethh.dstaddr, ethh.srcaddr, ethh.ethtype)
-    add_to_stream(packet_num, pktbuf, eth_key, ETHERNET_CONNECTIONDICT)
+    add_to_stream(packet_num, pktbuf, eth_key, stream_dicts.ETHERNET_CONNECTIONDICT)
     match ethh.ethtype:
         case 0x0800:
             iph = ip4header.read(pktbuf, ETHHDRLEN)
@@ -39,7 +37,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 udph = udpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
                 # if udph.dstport == 53: print('DNS packet')
                 udp_key = (udph.srcport, udph.dstport)
-                add_to_stream(packet_num, pktbuf, udp_key, UDP_CONNECTIONDICT)
+                add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 # return
             if iph.proto != TCP_PROTO: return			# ignore
             tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
@@ -61,16 +59,16 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             #     TCP_CONNECTIONDICT[tcp_key].append([packet_num, pktbuf])
             # else:
             #     TCP_CONNECTIONDICT[tcp_key] = [[packet_num, pktbuf]]
-            add_to_stream(packet_num, pktbuf, tcp_key, TCP_CONNECTIONDICT)
+            add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
 
 
             ipv4_key = (iph.srcaddrb, iph.dstaddrb)
-            add_to_stream(packet_num, pktbuf, ipv4_key, IPV4_CONNECTIONDICT)
+            add_to_stream(packet_num, pktbuf, ipv4_key, stream_dicts.IPV4_CONNECTIONDICT)
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
             ipv6_key = (ip6h.srcaddrb, ip6h.dstaddrb)
-            add_to_stream(packet_num, pktbuf, ipv6_key, IPV6_CONNECTIONDICT)
+            add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
             # print(ip6h.trafficclassfield)
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
@@ -85,10 +83,10 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                     srcip = '-'
                     dstip = '-'
             arp_key = (arph.srcmac, srcip, arph.dstmac, dstip, arph.opcode)
-            add_to_stream(packet_num, pktbuf, arp_key, ARP_CONNECTIONDICT)
-        case hex(ICMPV4_PROTO):
+            add_to_stream(packet_num, pktbuf, arp_key, stream_dicts.ARP_CONNECTIONDICT)
+        case 0x0001: #ICMPV4_PROTO
             pass
-        case hex(ICMPV6_PROTO):
+        case 0x003A: #ICMPV6_PROTO
             pass
         case other: return None		# ignore other packets
 
@@ -133,7 +131,9 @@ print(input_pcaps)
 if len(input_pcaps) > 0:
     print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
     for pcap in input_pcaps:
-        print(pcap)
+        stream_dicts = connections() #re-initialise the connection dictionaries
+        PACKET_COUNT = 0 #re-initialise the packet counter
+        print("\n\n", pcap)
         pcap_name = pcap.split('.')
         if pcap.split('.')[-1].lower() != 'pcap':
             print(f"File {pcap} not a pcap. Aborting.\n")
@@ -141,27 +141,27 @@ if len(input_pcaps) > 0:
             FILENAME = pcap
             process_packets(FILENAME)
             try:
-                dumpdict(TCP_CONNECTIONDICT, "TCP")
+                dumpdict(stream_dicts.TCP_CONNECTIONDICT, "TCP")
             except:
                 print("TCP stream could not be analysed")
             try:
-                dumpdict(UDP_CONNECTIONDICT, "UDP")
+                dumpdict(stream_dicts.UDP_CONNECTIONDICT, "UDP")
             except:
                 print("UDP stream could not be analysed")
             try:
-                dumpdict(IPV4_CONNECTIONDICT, "IPv4")
+                dumpdict(stream_dicts.IPV4_CONNECTIONDICT, "IPv4")
             except:
                 print("IPv4 stream could not be analysed")
             try:
-                dumpdict(IPV6_CONNECTIONDICT, "IPv6")
+                dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
             except:
                 print("IPv6 stream could not be analysed")
             try:
-                dumpdict(ARP_CONNECTIONDICT, "ARP")
+                dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
             except:
                 print("ARP stream could not be analysed")
             try:
-                dumpdict(ETHERNET_CONNECTIONDICT, "Ethernet")
+                dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
             except:
                 print("Ethernet stream could not be analysed")
         
