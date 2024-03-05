@@ -9,10 +9,13 @@ Credit to Peter L Dordal, http://pld.cs.luc.edu/courses/451/prev/project5/packet
 
 VERSION='2021_04_07'
 
-IPV4FLAG = 4
-IPV6FLAG = 6
-UDP_PROTO = 17
-TCP_PROTO = 6
+IPV4FLAG = 4 #in IP header
+IPV6FLAG = 6 #in IP header
+UDP_PROTO = 17 #in IP header
+TCP_PROTO = 6 #in IP header
+ICMPV4_PROTO = 1 #in IP header
+ICMPV6_PROTO = 58 #in IP header
+ARP_PROTO = 0x0806 #in Ethernet header
 
 VERIFY_CHECKSUMS = False
 ETHHDRLEN = 14
@@ -56,6 +59,28 @@ class ethheader:
         
     def write(self, buf : bytearray, bufstart):
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
+
+class arpheader:
+    def __init__(self):
+        self.proto_type = None
+        self.opcode = None
+        self.srcmac = None
+        self.proto_src_addrb = None
+        self.dstmac = None
+        self.proto_dst_addrb = None
+        self.isgratuituous = False
+    
+    @staticmethod
+    def read(buf: bytes, bufstart):
+        arphdr = arpheader()
+        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        arphdr.srcmac = bytearray(arphdr.srcmac).hex()
+        arphdr.srcmac = ':'.join(arphdr.srcmac[i:i+2] for i in range (0, len(arphdr.srcmac), 2))
+        arphdr.dstmac = bytearray(arphdr.dstmac).hex()
+        arphdr.dstmac = ':'.join(arphdr.dstmac[i:i+2] for i in range (0, len(arphdr.dstmac), 2))
+        if arphdr.dstmac == 'ff:ff:ff:ff:ff:ff':
+            arphdr.isgratuituous = True
+        return arphdr
             
 DONTFRAG  = 0x2
 MOREFRAGS = 0x1
@@ -118,6 +143,36 @@ class ip4header:
         elif self.proto == TCP_PROTO: protostr = 'TCP'
         return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
 
+class ip6header:
+    def __init__(self):
+        self.trafficclassfield  = None	# like differentiated services in ipv4. 8 bits
+        self.flowlabel          = None  # 20 bits, new for ipv6
+        self.length             = None	# IP and TCP/UDP headers and DATA
+        self.nextheader         = None
+        self.hoplimit           = None
+        self.srcaddrb           = None
+        self.dstaddrb           = None
+        self.extheaders         = None # Extension headers
+
+    # the following static method returns an ip6header object
+    @staticmethod
+    def read(buf : bytes, bufstart):
+        if (buf[bufstart] >> 4) != IPV6FLAG: 
+            eprint('packet not IPv6')
+            return None
+        ip6h = ip6header()
+        # ip6h.trafficclassfield = (buf[bufstart] & 0x0f) * 8
+        # if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip6h.iphdrlen) != 0xffff: return None 	# drop packet
+        a = struct.unpack_from('!s3sH1s1s16s16s', buf, bufstart)
+        (ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb) = a
+        # (ip6h.srcaddrb, ip6h.dstaddrb) = struct.unpack_from('16s16s', buf, bufstart+1)
+        return ip6h
+
+    def __str__(self):
+        protostr = 'UNKNOWN'
+        if self.nextheader == UDP_PROTO: protostr = 'UDP'
+        elif self.nextheader == TCP_PROTO: protostr = 'TCP'
+        return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
 
 class udpheader:
     def __init__(self):
