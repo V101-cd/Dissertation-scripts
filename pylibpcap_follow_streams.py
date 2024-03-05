@@ -86,6 +86,10 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                     dstip = '-'
             arp_key = (arph.srcmac, srcip, arph.dstmac, dstip, arph.opcode)
             add_to_stream(packet_num, pktbuf, arp_key, ARP_CONNECTIONDICT)
+        case hex(ICMPV4_PROTO):
+            pass
+        case hex(ICMPV6_PROTO):
+            pass
         case other: return None		# ignore other packets
 
 def add_to_stream(packet_num, pktbuf, key, connectiondict):
