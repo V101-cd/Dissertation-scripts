@@ -67,7 +67,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
-            ipv6_key = (ip6h.srcaddrb, ip6h.dstaddrb)
+            ipv6_key = (ip6h.trafficclassfield, ip6h.srcaddrb, ip6h.dstaddrb)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
             # print(ip6h.trafficclassfield)
         case 0x0806: #ARP_PROTO
@@ -85,7 +85,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             arp_key = (arph.srcmac, srcip, arph.dstmac, dstip, arph.opcode)
             add_to_stream(packet_num, pktbuf, arp_key, stream_dicts.ARP_CONNECTIONDICT)
         case 0x0001: #ICMPV4_PROTO
-            pass
+            icmph = icmp4header.read(pktbuf, ETHHDRLEN)
+            icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+            add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
         case 0x003A: #ICMPV6_PROTO
             pass
         case other: return None		# ignore other packets
@@ -106,18 +108,18 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
         #     case "UDP":
         #         (lport, rport) = key
         #         print('\n({},{}): {} packets'.format(lport, rport, len(d[key])))
-            case "IPv4":
-                (laddrb, raddrb) = key
-                print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
+            # case "IPv4":
+            #     (laddrb, raddrb) = key
+            #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
             case "IPv6":
-                (laddrb, raddrb) = key
-                print('\n({},{}): {} packets'.format(laddrb, raddrb, len(d[key])))
+                (trafficclass, laddrb, raddrb) = key
+                print('\n({},{},{}): {} packets'.format(trafficclass, laddrb, raddrb, len(d[key])))
             # case "Ethernet":
         #         (laddrb, raddrb, ptype) = key
         #         print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
-            case "ARP":
-                (srcmac, srcip, dstmac, dstip, opcode) = key
-                print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
+            # case "ARP":
+            #     (srcmac, srcip, dstmac, dstip, opcode) = key
+            #     print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
     print('There were {} unique {} connections'.format(len(d), dict_name))
     print('There were {} packets captured in {}'.format(PACKET_COUNT, FILENAME))
 
@@ -153,9 +155,17 @@ if len(input_pcaps) > 0:
             except:
                 print("IPv4 stream could not be analysed")
             try:
+                dumpdict(stream_dicts.ICMP_V4_CONNECTIONDICT, "ICMPv4")
+            except:
+                print("ICMPv4 stream could not be analysed")
+            try:
                 dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
             except:
                 print("IPv6 stream could not be analysed")
+            try:
+                dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "ICMPv6")
+            except:
+                print("ICMPv6 stream could not be analysed")
             try:
                 dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
             except:

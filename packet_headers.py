@@ -157,7 +157,8 @@ class ip6header:
     # the following static method returns an ip6header object
     @staticmethod
     def read(buf : bytes, bufstart):
-        if (buf[bufstart] >> 4) != IPV6FLAG: 
+        buffcounter = 0
+        if (buf[bufstart] >> buffcounter+4) != IPV6FLAG: ## version field
             eprint('packet not IPv6')
             return None
         ip6h = ip6header()
@@ -165,6 +166,20 @@ class ip6header:
         # if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip6h.iphdrlen) != 0xffff: return None 	# drop packet
         a = struct.unpack_from('!s3sH1s1s16s16s', buf, bufstart)
         (ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb) = a
+        print("unpacking version 1: ", ip6h.srcaddrb, ip6h.dstaddrb)
+        buffcounter += 4
+        ip6h.trafficclassfield = (buf[buffcounter] >> 8) ## >> buffcounter+8
+        buffcounter += 8
+        ip6h.flowlabel = (buf[buffcounter] >> 20) ## >> buffcounter+20
+        buffcounter += 20
+        ip6h.nextheader = buf[buffcounter] >> 8
+        buffcounter += 8
+        ip6h.hoplimit = buf[buffcounter] >> buffcounter+8
+        buffcounter += 8
+        ip6h.srcaddrb = buf[buffcounter] >> buffcounter+128
+        buffcounter += 128
+        ip6h.dstaddrb = buf[buffcounter] >> buffcounter+128
+        print("unpacking version 2: ", ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
         # (ip6h.srcaddrb, ip6h.dstaddrb) = struct.unpack_from('16s16s', buf, bufstart+1)
         return ip6h
 
@@ -173,6 +188,29 @@ class ip6header:
         if self.nextheader == UDP_PROTO: protostr = 'UDP'
         elif self.nextheader == TCP_PROTO: protostr = 'TCP'
         return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
+    
+class icmp4header:
+    def __init__(self): ##datatracker.ietf.org/html/rfc792
+        self.type           = None #Type, 8 bits
+        self.code           = None #Code, 8 bits
+        self.checksum       = None #Checksum, 16 bits
+        self.ip4header      = None #IPv4 header
+        self.datagrambytes  = None #first 64 bits of the datagram
+    
+    # We need the iphdr to verify the checksum
+    @staticmethod
+    def read(buf, bufstart, iphdr=None):
+        icmph = icmp4header()
+        (icmph.type, icmph.code, icmph.checksum, unused, icmph.ip4header, icmph.datagrambytes) = struct.unpack_from('!ss2s4sBHHHBBH4s4s8s', buf, bufstart)
+        # if VERIFY_CHECKSUMS and udph.chksum != 0:
+        #     if not iphdr: 
+        #         eprint('call to udpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad UDP checksum received')
+        #         return None
+        return icmph
 
 class udpheader:
     def __init__(self):

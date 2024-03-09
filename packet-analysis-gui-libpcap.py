@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QFileDialog,
     QRadioButton,
     QButtonGroup,
     QStackedLayout,
@@ -15,7 +16,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
 )
-import pylibpcap_follow_streams as parser
+# import pylibpcap_follow_streams as parser
 
 class FrameWindow(QWidget):
     """
