@@ -145,6 +145,7 @@ class ip4header:
 
 class ip6header:
     def __init__(self):
+        self.version            = None  # should be 6
         self.trafficclassfield  = None	# like differentiated services in ipv4. 8 bits
         self.flowlabel          = None  # 20 bits, new for ipv6
         self.length             = None	# IP and TCP/UDP headers and DATA
@@ -156,38 +157,59 @@ class ip6header:
 
     # the following static method returns an ip6header object
     @staticmethod
-    def read(buf : bytes, bufstart):
-        buffcounter = 0
-        if (buf[bufstart] >> buffcounter+4) != IPV6FLAG: ## version field
-            eprint('packet not IPv6')
-            return None
+    # def read(buf : bytes, bufstart):
+    #     buffcounter = 0
+    #     if (buf[bufstart] >> buffcounter+4) != IPV6FLAG: ## version field
+    #         eprint('packet not IPv6')
+    #         return None
+    #     ip6h = ip6header()
+    #     # ip6h.trafficclassfield = (buf[bufstart] & 0x0f) * 8
+    #     # if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip6h.iphdrlen) != 0xffff: return None 	# drop packet
+    #     a = struct.unpack_from('!s3sH1s1s16s16s', buf, bufstart)
+    #     (ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb) = a
+    #     print("unpacking version 1: ", ip6h.srcaddrb, ip6h.dstaddrb)
+    #     buffcounter += 4
+    #     ip6h.trafficclassfield = (buf[buffcounter] >> 8) ## >> buffcounter+8
+    #     buffcounter += 8
+    #     ip6h.flowlabel = (buf[buffcounter] >> 20) ## >> buffcounter+20
+    #     buffcounter += 20
+    #     ip6h.nextheader = buf[buffcounter] >> 8
+    #     buffcounter += 8
+    #     ip6h.hoplimit = buf[buffcounter] >> buffcounter+8
+    #     buffcounter += 8
+    #     ip6h.srcaddrb = buf[buffcounter] >> buffcounter+128
+    #     buffcounter += 128
+    #     ip6h.dstaddrb = buf[buffcounter] >> buffcounter+128
+    #     print("unpacking version 2: ", ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
+    #     # (ip6h.srcaddrb, ip6h.dstaddrb) = struct.unpack_from('16s16s', buf, bufstart+1)
+    #     return ip6h
+
+    # def __str__(self):
+    #     protostr = 'UNKNOWN'
+    #     if self.nextheader == UDP_PROTO: protostr = 'UDP'
+    #     elif self.nextheader == TCP_PROTO: protostr = 'TCP'
+    #     return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
+
+    def read(buf: bytes, bufstart):
         ip6h = ip6header()
-        # ip6h.trafficclassfield = (buf[bufstart] & 0x0f) * 8
-        # if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip6h.iphdrlen) != 0xffff: return None 	# drop packet
-        a = struct.unpack_from('!s3sH1s1s16s16s', buf, bufstart)
-        (ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb) = a
-        print("unpacking version 1: ", ip6h.srcaddrb, ip6h.dstaddrb)
+        buffcounter = 0
+        ip6h.version = buf[bufstart:buffcounter+4] ##version
         buffcounter += 4
-        ip6h.trafficclassfield = (buf[buffcounter] >> 8) ## >> buffcounter+8
+        ip6h.trafficclassfield = buf[bufstart+buffcounter:buffcounter+8] ##traffic class
         buffcounter += 8
-        ip6h.flowlabel = (buf[buffcounter] >> 20) ## >> buffcounter+20
+        ip6h.flowlabel = buf[bufstart+buffcounter:buffcounter+20] ##flow label
         buffcounter += 20
-        ip6h.nextheader = buf[buffcounter] >> 8
+        ip6h.length = buf[bufstart+buffcounter:buffcounter+16] ##payload length
+        buffcounter += 16
+        ip6h.nextheader = buf[bufstart+buffcounter:buffcounter+8] ##next header
         buffcounter += 8
-        ip6h.hoplimit = buf[buffcounter] >> buffcounter+8
+        ip6h.hoplimit = buf[bufstart+buffcounter:buffcounter+8] ##hop limit
         buffcounter += 8
-        ip6h.srcaddrb = buf[buffcounter] >> buffcounter+128
+        ip6h.srcaddrb = buf[bufstart+buffcounter:buffcounter+128] ##source address
         buffcounter += 128
-        ip6h.dstaddrb = buf[buffcounter] >> buffcounter+128
-        print("unpacking version 2: ", ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
-        # (ip6h.srcaddrb, ip6h.dstaddrb) = struct.unpack_from('16s16s', buf, bufstart+1)
+        ip6h.dstaddrb = buf[bufstart+buffcounter:buffcounter+128] ##destination address
         return ip6h
 
-    def __str__(self):
-        protostr = 'UNKNOWN'
-        if self.nextheader == UDP_PROTO: protostr = 'UDP'
-        elif self.nextheader == TCP_PROTO: protostr = 'TCP'
-        return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
     
 class icmp4header:
     def __init__(self): ##datatracker.ietf.org/html/rfc792
@@ -240,8 +262,7 @@ class udpheader:
         struct.pack_into('!HHHH', buf, bufstart, self.srcport, self.dstport, self.length, 0)
         # checksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, iphdr.length)
         # struct.pack_into('!H', buf, bufstart+ 6, 0xFFFF - checksum)		# checksum has offset 6
-
-        
+    
 class tcpheader:  
     def __init__(self):
         self.tcphdrlen= None

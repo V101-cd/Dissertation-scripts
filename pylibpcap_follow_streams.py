@@ -67,9 +67,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
-            ipv6_key = (ip6h.trafficclassfield, ip6h.srcaddrb, ip6h.dstaddrb)
+            ipv6_key = (ip6h.version, ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
-            # print(ip6h.trafficclassfield)
+            print(packet_num, ip6h.srcaddrb, ip6h.dstaddrb)
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
             match arph.proto_type:
