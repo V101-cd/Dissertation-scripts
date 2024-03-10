@@ -69,7 +69,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
             ipv6_key = (ip6h.version, ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
-            print(packet_num, ip6h.srcaddrb, ip6h.dstaddrb)
+            print(packet_num, ip6h.version, ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb)
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
             match arph.proto_type:
@@ -134,7 +134,7 @@ if len(input_pcaps) > 0:
     print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
     for pcap in input_pcaps:
         stream_dicts = connections() #re-initialise the connection dictionaries
-        PACKET_COUNT = 0 #re-initialise the packet counter
+        PACKET_COUNT = 1 #re-initialise the packet counter
         print("\n\n", pcap)
         pcap_name = pcap.split('.')
         if pcap.split('.')[-1].lower() != 'pcap':
