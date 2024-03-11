@@ -153,13 +153,14 @@ class ip6header:
         self.hoplimit           = None
         self.srcaddrb           = None
         self.dstaddrb           = None
-        self.extheaders         = None # Extension headers
+        self.extheaders         = [] # Extension headers
 
     # the following static method returns an ip6header object
     @staticmethod
     def read(buf: bytes, bufstart):
         # print(buf, bufstart)
         hexbuf = buf[bufstart:].hex()
+        print(hexbuf)
         ip6h = ip6header()
         counter = 0
         ip6h.version = hexbuf[counter: counter + (4//4)]
@@ -177,6 +178,20 @@ class ip6header:
         ip6h.srcaddrb = hexbuf[counter: counter + (128//4)] ##source address
         counter += (128//4) 
         ip6h.dstaddrb = hexbuf[counter: counter + (128//4)]  ##destination address
+        counter += (128//4)
+        # remaining_bytes = (len(hexbuf[counter:]) // 4) - int(ip6h.length)
+        # print("Extension header length: ", remaining_bytes)
+        next_headers = []
+        if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
+            next_headers.append(int(ip6h.nextheader, base=16))
+        ##RECURSIVELY FIND EXTENSION HEADERS
+        for header in next_headers:
+            if header == 0: ## Hop-by-Hop Options Header
+                next_headers.append(hexbuf[counter: counter + (8//4)])
+                counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
+                print("HOPOPT: ", next_headers, int(hexbuf[counter: counter + (8//4)], base=16))
+            next_headers.remove(header)
+        print(ip6h.extheaders)
         return ip6h
 
     

@@ -67,9 +67,8 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
-            ipv6_key = (ip6h.version, ip6h.trafficclassfield, ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
+            ipv6_key = (ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
-            print(packet_num, ip6h.version, ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb)
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
             match arph.proto_type:
@@ -111,15 +110,17 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
             # case "IPv4":
             #     (laddrb, raddrb) = key
             #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
-            case "IPv6":
-                (trafficclass, laddrb, raddrb) = key
-                print('\n({},{},{}): {} packets'.format(trafficclass, laddrb, raddrb, len(d[key])))
+            # case "IPv6":
+            #     (flowlabel, laddrb, raddrb) = key
+            #     print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
             # case "Ethernet":
         #         (laddrb, raddrb, ptype) = key
         #         print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
             # case "ARP":
             #     (srcmac, srcip, dstmac, dstip, opcode) = key
             #     print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
+            case "ICMP":
+                pass
     print('There were {} unique {} connections'.format(len(d), dict_name))
     print('There were {} packets captured in {}'.format(PACKET_COUNT, FILENAME))
 
