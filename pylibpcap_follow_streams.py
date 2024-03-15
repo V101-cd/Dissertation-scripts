@@ -32,7 +32,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
     match ethh.ethtype:
         case 0x0800:
             iph = ip4header.read(pktbuf, ETHHDRLEN)
-            if not iph: return					# returns None if it doesn't look like an IPv4 packet
+            if not iph: return					# returns None if it doesn't look like an IPv4 packet but has ethtype 0x0800
             if iph.proto == UDP_PROTO: 
                 udph = udpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
                 # if udph.dstport == 53: print('DNS packet')
@@ -40,6 +40,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 # return
             if iph.proto != TCP_PROTO: return # ignore if not TCP_PROTO or UDP_PROTO
+
+                #########TODO: GET ICMP FOR IPV4 WORKING
+
             tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
             if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
             datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
@@ -59,6 +62,49 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             dstip = socket.inet_ntop(socket.AF_INET6, ip6h.dstaddrb)
             ipv6_key = (ip6h.flowlabel, srcip, dstip)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
+            
+            if (ip6h.nextheader == hex(UDP_PROTO)[2:]):
+                udph = udpheader.read(pktbuf, ETHHDRLEN + 40)
+                # if udph.dstport == 53: print('DNS packet')
+                udp_key = (udph.srcport, udph.dstport)
+                add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
+                return
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(UDP_PROTO))):
+                print(packet_num, ": IPv6 with UDP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                # udph = udpheader.read(pktbuf, ETHHDRLEN + 40)
+                # # if udph.dstport == 53: print('DNS packet')
+                # udp_key = (udph.srcport, udph.dstport)
+                # add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
+                return
+            if (ip6h.nextheader == hex(TCP_PROTO)[2:]):
+                print(packet_num, ": IPv6 with TCP")
+                tcph = tcpheader.read(pktbuf, ETHHDRLEN + 40)
+                localport   = tcph.srcport
+                remoteport  = tcph.dstport
+                remoteaddrb = ip6h.dstaddrb
+                tcp_key = (ip6h.srcaddrb, localport, remoteaddrb, remoteport)
+                add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
+
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(TCP_PROTO))):
+                print(packet_num, ": IPv6 with TCP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                return
+            # if (ip6h.nextheader != TCP_PROTO) : return # ignore if not TCP_PROTO or UDP_PROTO
+            # tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
+            # if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
+            # datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
+            # localport   = tcph.srcport
+            # remoteport  = tcph.dstport
+            # remoteaddrb = iph.dstaddrb
+            # tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
+            # add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
+                
+            if (ip6h.nextheader == hex(ICMPV6_PROTO)[2:]):
+                print(packet_num, ": IPv6 with ICMPv6")
+
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(ICMPV6_PROTO))):
+                print(packet_num, ": IPv6 with ICMPv6 in extension headers")
+
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
             match arph.proto_type:
@@ -92,24 +138,24 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
     
     for key in d:
         match dict_name:
-        #     case "TCP":
-        #         (laddrb, lport, raddrb, rport) = key
-        #         print('\n({},{},{},{}): {} packets'.format(socket.inet_ntoa(laddrb), lport, socket.inet_ntoa(raddrb), rport, len(d[key])))
-        #     case "UDP":
-        #         (lport, rport) = key
-        #         print('\n({},{}): {} packets'.format(lport, rport, len(d[key])))
-            # case "IPv4":
-            #     (laddrb, raddrb) = key
-            #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
-            # case "IPv6":
-            #     (flowlabel, laddrb, raddrb) = key
-            #     print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
+            case "TCP":
+                (laddrb, lport, raddrb, rport) = key
+                print('\n({},{},{},{}): {} packets'.format(socket.inet_ntoa(laddrb), lport, socket.inet_ntoa(raddrb), rport, [d[key][i][0] for i in range(len(d[key]))]))
+            case "UDP":
+                (lport, rport) = key
+                # print('\n({},{}): {} packets'.format(lport, rport, [d[key][i][0] for i in range(len(d[key]))]))
+            case "IPv4":
+                (laddrb, raddrb) = key
+                # print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), [d[key][i][0] for i in range(len(d[key]))]))
+            case "IPv6":
+                (flowlabel, laddrb, raddrb) = key
+                # print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, [d[key][i][0] for i in range(len(d[key]))]))
             case "Ethernet":
                 (laddrb, raddrb, ptype) = key
-                print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, [d[key][i][0] for i in range(len(d[key]))]))
-            # case "ARP":
-            #     (srcmac, srcip, dstmac, dstip, opcode) = key
-            #     print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
+                # print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, [d[key][i][0] for i in range(len(d[key]))]))
+            case "ARP":
+                (srcmac, srcip, dstmac, dstip, opcode) = key
+                # print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, [d[key][i][0] for i in range(len(d[key]))]))
             case "ICMP":
                 pass
     print('There were {} unique {} connections'.format(len(d), dict_name))
@@ -166,6 +212,9 @@ if len(input_pcaps) > 0:
                 dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
             except:
                 print("Ethernet stream could not be analysed")
+        print(len(stream_dicts.ETHERNET_CONNECTIONDICT) + len(stream_dicts.ARP_CONNECTIONDICT))
+        print(len(stream_dicts.IPV4_CONNECTIONDICT) + len(stream_dicts.IPV6_CONNECTIONDICT))
+        print(len(stream_dicts.TCP_CONNECTIONDICT) + len(stream_dicts.UDP_CONNECTIONDICT) + len(stream_dicts.ICMP_V4_CONNECTIONDICT) + len(stream_dicts.ICMP_V6_CONNECTIONDICT))
         
     # else:
     #     print(f"Error. At least one file needed to run. Aborting.\n")
