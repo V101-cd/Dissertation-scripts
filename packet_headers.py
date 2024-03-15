@@ -55,6 +55,10 @@ class ethheader:
     def read(buf : bytes, bufstart):
         ehdr = ethheader()
         (ehdr.dstaddr, ehdr.srcaddr, ehdr.ethtype) = struct.unpack_from('!6s6sH', buf, bufstart)
+        ehdr.srcaddr = bytearray(ehdr.srcaddr).hex()
+        ehdr.srcaddr = ':'.join(ehdr.srcaddr[i:i+2] for i in range (0, len(ehdr.srcaddr), 2))
+        ehdr.dstaddr = bytearray(ehdr.dstaddr).hex()
+        ehdr.dstaddr = ':'.join(ehdr.dstaddr[i:i+2] for i in range (0, len(ehdr.dstaddr), 2))
         return ehdr
         
     def write(self, buf : bytearray, bufstart):

@@ -101,15 +101,15 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
             # case "IPv4":
             #     (laddrb, raddrb) = key
             #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
-            case "IPv6":
-                (flowlabel, laddrb, raddrb) = key
-                print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, d[key]))
-            # case "Ethernet":
-        #         (laddrb, raddrb, ptype) = key
-        #         print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
-            case "ARP":
-                (srcmac, srcip, dstmac, dstip, opcode) = key
-                print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
+            # case "IPv6":
+            #     (flowlabel, laddrb, raddrb) = key
+            #     print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
+            case "Ethernet":
+                (laddrb, raddrb, ptype) = key
+                print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, [d[key][i][0] for i in range(len(d[key]))]))
+            # case "ARP":
+            #     (srcmac, srcip, dstmac, dstip, opcode) = key
+            #     print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
             case "ICMP":
                 pass
     print('There were {} unique {} connections'.format(len(d), dict_name))
