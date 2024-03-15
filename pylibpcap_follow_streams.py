@@ -22,8 +22,8 @@ def process_packets(fname):
     sum = 0
     count=0
     for length, time, pktbuf in rpcap(fname):		# here is where we examine each packet
-        process_one_pkt(PACKET_COUNT, length, time, pktbuf, ETHHDRLEN)
         PACKET_COUNT += 1
+        process_one_pkt(PACKET_COUNT, length, time, pktbuf, ETHHDRLEN)
 
 def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
     ethh= ethheader.read(pktbuf, 0)
@@ -103,7 +103,7 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
             #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
             case "IPv6":
                 (flowlabel, laddrb, raddrb) = key
-                print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
+                print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, d[key]))
             # case "Ethernet":
         #         (laddrb, raddrb, ptype) = key
         #         print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
@@ -126,7 +126,7 @@ if len(input_pcaps) > 0:
     print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
     for pcap in input_pcaps:
         stream_dicts = connections() #re-initialise the connection dictionaries
-        PACKET_COUNT = 1 #re-initialise the packet counter
+        PACKET_COUNT = 0 #re-initialise the packet counter
         print("\n\n", pcap)
         pcap_name = pcap.split('.')
         if pcap.split('.')[-1].lower() != 'pcap':
