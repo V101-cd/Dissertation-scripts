@@ -33,6 +33,8 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
         case 0x0800:
             iph = ip4header.read(pktbuf, ETHHDRLEN)
             if not iph: return					# returns None if it doesn't look like an IPv4 packet but has ethtype 0x0800
+            ipv4_key = (iph.srcaddrb, iph.dstaddrb)
+            add_to_stream(packet_num, pktbuf, ipv4_key, stream_dicts.IPV4_CONNECTIONDICT)
             if iph.proto == UDP_PROTO: 
                 udph = udpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
                 # if udph.dstport == 53: print('DNS packet')
@@ -53,8 +55,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
 
 
-            ipv4_key = (iph.srcaddrb, iph.dstaddrb)
-            add_to_stream(packet_num, pktbuf, ipv4_key, stream_dicts.IPV4_CONNECTIONDICT)
+
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
@@ -140,7 +141,7 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
         match dict_name:
             case "TCP":
                 (laddrb, lport, raddrb, rport) = key
-                print('\n({},{},{},{}): {} packets'.format(socket.inet_ntoa(laddrb), lport, socket.inet_ntoa(raddrb), rport, [d[key][i][0] for i in range(len(d[key]))]))
+                # print('\n({},{},{},{}): {} packets'.format(socket.inet_ntoa(laddrb), lport, socket.inet_ntoa(raddrb), rport, [d[key][i][0] for i in range(len(d[key]))]))
             case "UDP":
                 (lport, rport) = key
                 # print('\n({},{}): {} packets'.format(lport, rport, [d[key][i][0] for i in range(len(d[key]))]))
@@ -212,10 +213,33 @@ if len(input_pcaps) > 0:
                 dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
             except:
                 print("Ethernet stream could not be analysed")
-        print(len(stream_dicts.ETHERNET_CONNECTIONDICT) + len(stream_dicts.ARP_CONNECTIONDICT))
-        print(len(stream_dicts.IPV4_CONNECTIONDICT) + len(stream_dicts.IPV6_CONNECTIONDICT))
-        print(len(stream_dicts.TCP_CONNECTIONDICT) + len(stream_dicts.UDP_CONNECTIONDICT) + len(stream_dicts.ICMP_V4_CONNECTIONDICT) + len(stream_dicts.ICMP_V6_CONNECTIONDICT))
+        # print(len(stream_dicts.ETHERNET_CONNECTIONDICT) + len(stream_dicts.ARP_CONNECTIONDICT))
+        # print(len(stream_dicts.IPV4_CONNECTIONDICT) + len(stream_dicts.IPV6_CONNECTIONDICT))
+        # print(len(stream_dicts.TCP_CONNECTIONDICT) + len(stream_dicts.UDP_CONNECTIONDICT) + len(stream_dicts.ICMP_V4_CONNECTIONDICT) + len(stream_dicts.ICMP_V6_CONNECTIONDICT))
         
+            eth_sum = 0
+            for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
+                eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
+            print(eth_sum)
+
+            arp_sum = 0
+            for key in stream_dicts.ARP_CONNECTIONDICT.keys():
+                arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
+            print(arp_sum)
+
+            ipv4_sum = 0
+            for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
+                ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
+            print(ipv4_sum)
+
+            ipv6_sum = 0
+            for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
+                ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
+            print(ipv6_sum)
+
+            print(eth_sum)
+            print(ipv4_sum + ipv6_sum + arp_sum)
+
     # else:
     #     print(f"Error. At least one file needed to run. Aborting.\n")
     # print("No more files to be analysed. Exiting\n")
