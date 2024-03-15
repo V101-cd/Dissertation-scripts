@@ -39,26 +39,14 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 udp_key = (udph.srcport, udph.dstport)
                 add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 # return
-            if iph.proto != TCP_PROTO: return			# ignore
+            if iph.proto != TCP_PROTO: return # ignore if not TCP_PROTO or UDP_PROTO
             tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
             if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
             datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
-            # print (socket.inet_ntoa(iph.srcaddrb), tcph.dstport, datalen)
-            # if iph.srcaddrb == LOCALADDRB:			# source address is local endpoint
             localport   = tcph.srcport
             remoteport  = tcph.dstport
             remoteaddrb = iph.dstaddrb
-                # upstream    = True
-            # else:
-            #     localport   = tcph.dstport
-            #     remoteaddrb = iph.srcaddrb
-            #     remoteport  = tcph.srcport
-                # upstream    = False
             tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
-            # if tcp_key in TCP_CONNECTIONDICT:
-            #     TCP_CONNECTIONDICT[tcp_key].append([packet_num, pktbuf])
-            # else:
-            #     TCP_CONNECTIONDICT[tcp_key] = [[packet_num, pktbuf]]
             add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
 
 
@@ -67,7 +55,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
 
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
-            ipv6_key = (ip6h.flowlabel, ip6h.srcaddrb, ip6h.dstaddrb)
+            srcip = socket.inet_ntop(socket.AF_INET6, ip6h.srcaddrb)
+            dstip = socket.inet_ntop(socket.AF_INET6, ip6h.dstaddrb)
+            ipv6_key = (ip6h.flowlabel, srcip, dstip)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
@@ -86,6 +76,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
         case 0x0001: #ICMPV4_PROTO
             icmph = icmp4header.read(pktbuf, ETHHDRLEN)
             icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+            print(icmph_key)
             add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
         case 0x003A: #ICMPV6_PROTO
             pass
@@ -110,15 +101,15 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
             # case "IPv4":
             #     (laddrb, raddrb) = key
             #     print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), len(d[key])))
-            # case "IPv6":
-            #     (flowlabel, laddrb, raddrb) = key
-            #     print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
+            case "IPv6":
+                (flowlabel, laddrb, raddrb) = key
+                print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, len(d[key])))
             # case "Ethernet":
         #         (laddrb, raddrb, ptype) = key
         #         print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, len(d[key])))
-            # case "ARP":
-            #     (srcmac, srcip, dstmac, dstip, opcode) = key
-            #     print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
+            case "ARP":
+                (srcmac, srcip, dstmac, dstip, opcode) = key
+                print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, len(d[key])))
             case "ICMP":
                 pass
     print('There were {} unique {} connections'.format(len(d), dict_name))

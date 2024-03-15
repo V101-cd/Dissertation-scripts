@@ -158,40 +158,34 @@ class ip6header:
     # the following static method returns an ip6header object
     @staticmethod
     def read(buf: bytes, bufstart):
-        # print(buf, bufstart)
-        hexbuf = buf[bufstart:].hex()
-        print(hexbuf)
+        hexbuf = buf[bufstart:].hex() ##because we convert the bytestream to hex, divide all offsets by 4
         ip6h = ip6header()
         counter = 0
-        ip6h.version = hexbuf[counter: counter + (4//4)]
+        ip6h.version = (hexbuf[counter: counter + (4//4)])
         counter += (4//4)
-        ip6h.trafficclassfield = hexbuf[counter: counter + (8//4)] ##traffic class
+        ip6h.trafficclassfield = (hexbuf[counter: counter + (8//4)]) ##traffic class
         counter += (8//4)
-        ip6h.flowlabel = hexbuf[counter: counter + (20//4)] ##flow label
+        ip6h.flowlabel = (hexbuf[counter: counter + (20//4)]) ##flow label
         counter += (20//4) 
-        ip6h.length = hexbuf[counter: counter + (16//4)] ##payload length
+        ip6h.length = (hexbuf[counter: counter + (16//4)]) ##payload length
         counter += (16//4) 
-        ip6h.nextheader = hexbuf[counter: counter + (8//4)] ##next header
+        ip6h.nextheader = (hexbuf[counter: counter + (8//4)]) ##next header
         counter += (8//4) 
         ip6h.hoplimit = hexbuf[counter: counter + (8//4)] ##hop limit
         counter += (8//4) 
-        ip6h.srcaddrb = hexbuf[counter: counter + (128//4)] ##source address
+        ip6h.srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
         counter += (128//4) 
-        ip6h.dstaddrb = hexbuf[counter: counter + (128//4)]  ##destination address
+        ip6h.dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
         counter += (128//4)
-        # remaining_bytes = (len(hexbuf[counter:]) // 4) - int(ip6h.length)
-        # print("Extension header length: ", remaining_bytes)
         next_headers = []
         if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
             next_headers.append(int(ip6h.nextheader, base=16))
         ##RECURSIVELY FIND EXTENSION HEADERS
         for header in next_headers:
             if header == 0: ## Hop-by-Hop Options Header
-                next_headers.append(hexbuf[counter: counter + (8//4)])
+                next_headers.append(hexbuf[counter: counter + (8//4)]) ##header type immediately following the Hop-by-hop options header (same values as for Ipv4)
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
-                print("HOPOPT: ", next_headers, int(hexbuf[counter: counter + (8//4)], base=16))
-            next_headers.remove(header)
-        print(ip6h.extheaders)
+        ip6h.extheaders = next_headers[1:]
         return ip6h
 
     
