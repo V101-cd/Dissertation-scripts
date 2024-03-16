@@ -40,23 +40,23 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 # if udph.dstport == 53: print('DNS packet')
                 udp_key = (udph.srcport, udph.dstport)
                 add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
-                # return
-            if iph.proto != TCP_PROTO: return # ignore if not TCP_PROTO or UDP_PROTO
-
-                #########TODO: GET ICMP FOR IPV4 WORKING
-
-            tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
-            if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
-            datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
-            localport   = tcph.srcport
-            remoteport  = tcph.dstport
-            remoteaddrb = iph.dstaddrb
-            tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
-            add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
-
-
-
-
+                return
+            if iph.proto == TCP_PROTO:
+                tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
+                if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
+                datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
+                localport   = tcph.srcport
+                remoteport  = tcph.dstport
+                remoteaddrb = iph.dstaddrb
+                tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
+                add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
+                return
+            if iph.proto == ICMPV4_PROTO:
+                print(packet_num, ": IPv4 with ICMPv4") ###################TODO: IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                icmph = icmp4header.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
+                icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+                add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
+                return
         case 0x86DD:
             ip6h = ip6header.read(pktbuf, ETHHDRLEN)
             srcip = socket.inet_ntop(socket.AF_INET6, ip6h.srcaddrb)
@@ -70,7 +70,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 udp_key = (udph.srcport, udph.dstport)
                 add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 return
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(UDP_PROTO))):
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(UDP_PROTO)[2:])):
                 print(packet_num, ": IPv6 with UDP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 # udph = udpheader.read(pktbuf, ETHHDRLEN + 40)
@@ -87,7 +87,7 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 tcp_key = (ip6h.srcaddrb, localport, remoteaddrb, remoteport)
                 add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
 
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(TCP_PROTO))):
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(TCP_PROTO)[2:])):
                 print(packet_num, ": IPv6 with TCP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 return
             # if (ip6h.nextheader != TCP_PROTO) : return # ignore if not TCP_PROTO or UDP_PROTO
@@ -102,8 +102,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 
             if (ip6h.nextheader == hex(ICMPV6_PROTO)[2:]):
                 print(packet_num, ": IPv6 with ICMPv6")
+                icmp6h = icmp6header.read(pktbuf, ETHHDRLEN + 40)
 
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(ICMPV6_PROTO))):
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(ICMPV6_PROTO)[2:])):
                 print(packet_num, ": IPv6 with ICMPv6 in extension headers")
 
         case 0x0806: #ARP_PROTO
@@ -120,14 +121,16 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                     dstip = '-'
             arp_key = (arph.srcmac, srcip, arph.dstmac, dstip, arph.opcode)
             add_to_stream(packet_num, pktbuf, arp_key, stream_dicts.ARP_CONNECTIONDICT)
-        case 0x0001: #ICMPV4_PROTO
-            icmph = icmp4header.read(pktbuf, ETHHDRLEN)
-            icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
-            print(icmph_key)
-            add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
+        # case 0x0001: #ICMPV4_PROTO
+        #     icmph = icmp4header.read(pktbuf, ETHHDRLEN)
+        #     icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+        #     print(icmph_key)
+        #     add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
         case 0x003A: #ICMPV6_PROTO
             pass
-        case other: return None		# ignore other packets
+        case other:
+            print(packet_num, ": protocol not recognised")
+            return None		# ignore other packets
 
 def add_to_stream(packet_num, pktbuf, key, connectiondict):
     if key in connectiondict:
@@ -220,25 +223,49 @@ if len(input_pcaps) > 0:
             eth_sum = 0
             for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
                 eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
-            print(eth_sum)
+            print("eth_sum: ", eth_sum)
 
             arp_sum = 0
             for key in stream_dicts.ARP_CONNECTIONDICT.keys():
                 arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
-            print(arp_sum)
+            print("arp_sum: ", arp_sum)
 
             ipv4_sum = 0
             for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
                 ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
-            print(ipv4_sum)
+            print("ip4 sum: ", ipv4_sum)
 
             ipv6_sum = 0
             for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
                 ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
-            print(ipv6_sum)
+            print("ip6 sum: ", ipv6_sum)
 
-            print(eth_sum)
-            print(ipv4_sum + ipv6_sum + arp_sum)
+            # print(eth_sum == ipv4_sum + ipv6_sum + arp_sum + 4) ##in 3MW, add 4 for EAPOL packets
+
+            tcp_sum = 0
+            for key in stream_dicts.TCP_CONNECTIONDICT.keys():
+                tcp_sum += len(stream_dicts.TCP_CONNECTIONDICT[key])
+            print("tcp_sum: ", tcp_sum)
+
+            udp_sum = 0
+            for key in stream_dicts.UDP_CONNECTIONDICT.keys():
+                udp_sum += len(stream_dicts.UDP_CONNECTIONDICT[key])
+            print("udp_sum: ", udp_sum)
+
+
+            icmpv4_sum = 0
+            for key in stream_dicts.ICMP_V4_CONNECTIONDICT.keys():
+                icmpv4_sum += len(stream_dicts.ICMP_V4_CONNECTIONDICT[key])
+            print("icmp4 sum: ", icmpv4_sum)
+
+            icmpv6_sum = 0
+            for key in stream_dicts.ICMP_V6_CONNECTIONDICT.keys():
+                icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
+            print("icmp6 sum: ", icmpv6_sum)
+
+            print(ipv4_sum + ipv6_sum)
+            # print(tcp_sum + udp_sum + icmpv4_sum + 10) ##in 3MW, add 10 for icmp6 packets
+
 
     # else:
     #     print(f"Error. At least one file needed to run. Aborting.\n")

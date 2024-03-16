@@ -203,9 +203,42 @@ class icmp4header:
     
     # We need the iphdr to verify the checksum
     @staticmethod
-    def read(buf, bufstart, iphdr=None):
+    def read(buf, bufstart):
         icmph = icmp4header()
-        (icmph.type, icmph.code, icmph.checksum, unused, icmph.ip4header, icmph.datagrambytes) = struct.unpack_from('!ss2s4sBHHHBBH4s4s8s', buf, bufstart)
+        # (icmph.type, icmph.code, icmph.checksum, unused, icmph.ip4header, icmph.datagrambytes) = struct.unpack_from('!ss2s4sBHHHBBH4s4s8s', buf, bufstart)
+        hexbuf = buf[bufstart:].hex()
+        print(hexbuf)
+        counter = 0
+        icmph.type = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmph.code = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmph.checksum = (hexbuf[counter: counter + (16//4)])
+        counter += (16//4)
+        print(icmph.type, icmph.code, icmph.checksum)
+        match icmph.type:
+            case 0:
+                print("ICMP Echo Reply")
+            case 3:
+                print("ICMP Destination Unreachable")
+            case 4:
+                print("ICMP Source Quench")
+            case 5:
+                print("ICMP Redirect")
+            case 8:
+                print("ICMP Echo")
+            case 11:
+                print("ICMP Time Exceeded")
+            case 12:
+                print("ICMP Parameter Problem")
+            case 13:
+                print("ICMP Timestamp")
+            case 14:
+                print("ICMP Timestamp Reply")
+            case 15:
+                print("ICMP Information Request")
+            case 16:
+                print("ICMP Information Reply")
         # if VERIFY_CHECKSUMS and udph.chksum != 0:
         #     if not iphdr: 
         #         eprint('call to udpheader.read() needs iphdr')
@@ -215,6 +248,33 @@ class icmp4header:
         #         eprint('packet with bad UDP checksum received')
         #         return None
         return icmph
+
+class icmp6header:
+    def __init__(self): ##rfc-editor.org/rfc/rfc8335 16 March 2024
+        self.type           = None #Type, 8 bits
+        self.code           = None #Code, 8 bits
+        self.checksum       = None #Checksum, 16 bits
+        self.identifier     = None #Identifier, 16 bits
+        self.seqnum         = None #Sequence number, 8 bits
+
+    @staticmethod
+    def read(buf, bufstart):
+        icmp6h = icmp6header()
+        hexbuf = buf[bufstart:].hex()
+        print(hexbuf)
+        counter = 0
+        icmp6h.type = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmp6h.code = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmp6h.checksum = (hexbuf[counter: counter + (16//4)])
+        counter += (16//4)
+        print(icmp6h.type, icmp6h.code, icmp6h.checksum)
+        if icmp6h.type in range(0,128):
+            print("ICMP6 error message")
+        else:
+            print("ICMP6 informational mesage")
+
 
 class udpheader:
     def __init__(self):
