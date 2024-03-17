@@ -52,9 +52,9 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
                 return
             if iph.proto == ICMPV4_PROTO:
-                print(packet_num, ": IPv4 with ICMPv4") ###################TODO: IMPLEMENT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 icmph = icmp4header.read(pktbuf, ETHHDRLEN + iph.iphdrlen)
-                icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+                # icmph_key = (icmph.type, icmph.code, icmph.ip4header, icmph.datagrambytes)
+                icmph_key = (icmph.type, icmph.code, icmph.verbose)
                 add_to_stream(packet_num, pktbuf, icmph_key, stream_dicts.ICMP_V4_CONNECTIONDICT)
                 return
         case 0x86DD:
@@ -103,6 +103,8 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             if (ip6h.nextheader == hex(ICMPV6_PROTO)[2:]):
                 print(packet_num, ": IPv6 with ICMPv6")
                 icmp6h = icmp6header.read(pktbuf, ETHHDRLEN + 40)
+                icmp6h_key = (icmp6h.type, icmp6h.code, icmp6h.verbose)
+                add_to_stream(packet_num, pktbuf, icmp6h_key, stream_dicts.ICMP_V6_CONNECTIONDICT)
 
             if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(ICMPV6_PROTO)[2:])):
                 print(packet_num, ": IPv6 with ICMPv6 in extension headers")
@@ -139,7 +141,6 @@ def add_to_stream(packet_num, pktbuf, key, connectiondict):
         connectiondict[key] = [[packet_num, pktbuf]]
 
 def dumpdict(d, dict_name):		# d[key] is a list of packets
-    
     for key in d:
         match dict_name:
             case "TCP":
@@ -153,15 +154,19 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
                 # print('\n({},{}): {} packets'.format(socket.inet_ntoa(laddrb), socket.inet_ntoa(raddrb), [d[key][i][0] for i in range(len(d[key]))]))
             case "IPv6":
                 (flowlabel, laddrb, raddrb) = key
-                # print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, [d[key][i][0] for i in range(len(d[key]))]))
+                print('\n({},{},{}): {} packets'.format(flowlabel, laddrb, raddrb, [d[key][i][0] for i in range(len(d[key]))]))
             case "Ethernet":
                 (laddrb, raddrb, ptype) = key
                 # print('\n({},{},{}): {} packets'.format(laddrb, raddrb, ptype, [d[key][i][0] for i in range(len(d[key]))]))
             case "ARP":
                 (srcmac, srcip, dstmac, dstip, opcode) = key
                 # print('\n({},{},{},{},{}): {} packets'.format(srcmac, srcip, dstmac, dstip, opcode, [d[key][i][0] for i in range(len(d[key]))]))
-            case "ICMP":
-                pass
+            case "ICMPv4":
+                (ptype, pcode, pverbose) = key
+                # print('\n({},{},{}): {} packets'.format(ptype, pcode, pverbose, [d[key][i][0] for i in range(len(d[key]))]))
+            case "ICMPv6":
+                (ptype, pcode, pverbose) = key
+                print('\n({},{},{}): {} packets'.format(ptype, pcode, pverbose, [d[key][i][0] for i in range(len(d[key]))]))
     print('There were {} unique {} connections'.format(len(d), dict_name))
     print('There were {} packets captured in {}'.format(PACKET_COUNT, FILENAME))
 
@@ -205,7 +210,7 @@ if len(input_pcaps) > 0:
             except:
                 print("IPv6 stream could not be analysed")
             try:
-                dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "ICMPv6")
+                dumpdict(stream_dicts.ICMP_V6_CONNECTIONDICT, "ICMPv6")
             except:
                 print("ICMPv6 stream could not be analysed")
             try:

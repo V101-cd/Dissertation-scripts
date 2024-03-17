@@ -198,8 +198,9 @@ class icmp4header:
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
-        self.ip4header      = None #IPv4 header
-        self.datagrambytes  = None #first 64 bits of the datagram
+        self.verbose        = None
+        # self.ip4header      = None #IPv4 header
+        # self.datagrambytes  = None #first 64 bits of the datagram
     
     # We need the iphdr to verify the checksum
     @staticmethod
@@ -207,7 +208,7 @@ class icmp4header:
         icmph = icmp4header()
         # (icmph.type, icmph.code, icmph.checksum, unused, icmph.ip4header, icmph.datagrambytes) = struct.unpack_from('!ss2s4sBHHHBBH4s4s8s', buf, bufstart)
         hexbuf = buf[bufstart:].hex()
-        print(hexbuf)
+        # print(hexbuf)
         counter = 0
         icmph.type = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
@@ -215,30 +216,30 @@ class icmp4header:
         counter += (8//4)
         icmph.checksum = (hexbuf[counter: counter + (16//4)])
         counter += (16//4)
-        print(icmph.type, icmph.code, icmph.checksum)
+        # print(icmph.type, icmph.code, icmph.checksum)
         match icmph.type:
             case 0:
-                print("ICMP Echo Reply")
+                icmph.verbose = "ICMP Echo Reply"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
             case 3:
-                print("ICMP Destination Unreachable")
+                icmph.verbose = "ICMP Destination Unreachable"
             case 4:
-                print("ICMP Source Quench")
+                icmph.verbose = "ICMP Source Quench"
             case 5:
-                print("ICMP Redirect")
+                icmph.verbose = "ICMP Redirect"
             case 8:
-                print("ICMP Echo")
+                icmph.verbose = "ICMP Echo"
             case 11:
-                print("ICMP Time Exceeded")
+                icmph.verbose = "ICMP Time Exceeded"
             case 12:
-                print("ICMP Parameter Problem")
+                icmph.verbose = "ICMP Parameter Problem"
             case 13:
-                print("ICMP Timestamp")
+                icmph.verbose = "ICMP Timestamp"
             case 14:
-                print("ICMP Timestamp Reply")
+                icmph.verbose = "ICMP Timestamp Reply"
             case 15:
-                print("ICMP Information Request")
+                icmph.verbose = "ICMP Information Request"
             case 16:
-                print("ICMP Information Reply")
+                icmph.verbose = "ICMP Information Reply"
         # if VERIFY_CHECKSUMS and udph.chksum != 0:
         #     if not iphdr: 
         #         eprint('call to udpheader.read() needs iphdr')
@@ -256,6 +257,7 @@ class icmp6header:
         self.checksum       = None #Checksum, 16 bits
         self.identifier     = None #Identifier, 16 bits
         self.seqnum         = None #Sequence number, 8 bits
+        self.verbose        = None
 
     @staticmethod
     def read(buf, bufstart):
@@ -272,9 +274,39 @@ class icmp6header:
         print(icmp6h.type, icmp6h.code, icmp6h.checksum)
         if icmp6h.type in range(0,128):
             print("ICMP6 error message")
-        else:
-            print("ICMP6 informational mesage")
+            match icmp6h.type:
+                case 1:
+                    icmp6h.verbose = "Destination Unreachable" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                case 2:
+                    icmp6h.verbose = "Packet Too Big"
+                case 3:
+                    icmp6h.verbose = "Time Exceeded"
+                case 4:
+                    icmp6h.verbose = "Parameter Problem"
+                case other:
+                    icmp6h.verbose = "unknown or invalid error message"
 
+        else:
+            print("ICMP6 informational message")
+            match icmp6h.type:
+                case 128:
+                    icmp6h.verbose = "Echo Request"
+                case 129:
+                    icmp6h.verbose = "Echo Reply"
+                case 133:
+                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-21 16 March 2024
+                case 134:
+                    icmp6h.verbose = "Router Advertisement"
+                case 135:
+                    icmp6h.verbose = "Neighbor Solicitation"
+                case 136:
+                    icmp6h.verbose = "Neighbor Advertisement"
+                case 137:
+                    icmp6h.verbose = "Redirect Message"
+
+                case other:
+                    icmp6h.verbose = "unknown or invalid informational message"
+        return icmp6h
 
 class udpheader:
     def __init__(self):
