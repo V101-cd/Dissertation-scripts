@@ -1,6 +1,4 @@
 '''
-For each connection, this lists the number of UPstream packets. It also prints the total number of connections
-
 Based on code by Peter L Dordal, http://pld.cs.luc.edu/courses/451/prev/project5/, specifically connection1.py. Accessed 23 February 2024
 '''
 
