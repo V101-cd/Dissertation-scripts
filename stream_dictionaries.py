@@ -6,8 +6,8 @@ class connections():
         self.QUIC_CONNECTIONDICT = {} ##maybe not possible
         self.DNS_CONNECTIONDICT = {} #maybe not possible
         self.IPV4_CONNECTIONDICT = {} #done
-        self.ICMP_V4_CONNECTIONDICT = {}
+        self.ICMP_V4_CONNECTIONDICT = {} #done
         self.IPV6_CONNECTIONDICT = {} #done
-        self.ICMP_V6_CONNECTIONDICT = {}
+        self.ICMP_V6_CONNECTIONDICT = {} #done
         self.ARP_CONNECTIONDICT = {} #done
         self.ETHERNET_CONNECTIONDICT = {} #done
