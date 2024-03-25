@@ -183,13 +183,13 @@ class ip6header:
         counter += (128//4)
         next_headers = []
         if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
-            next_headers.append(int(ip6h.nextheader, base=16))
+            next_headers.append(((int(ip6h.nextheader, base=16)), counter//2)) ##tuple containing header type, and offset
         ##RECURSIVELY FIND EXTENSION HEADERS
-        for header in next_headers:
+        for header,offset in next_headers:
             if header == 0: ## Hop-by-Hop Options Header
-                next_headers.append(hexbuf[counter: counter + (8//4)]) ##header type immediately following the Hop-by-hop options header (same values as for Ipv4)
+                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
-        ip6h.extheaders = next_headers[1:]
+        ip6h.extheaders = next_headers
         return ip6h
 
     
@@ -263,7 +263,6 @@ class icmp6header:
     def read(buf, bufstart):
         icmp6h = icmp6header()
         hexbuf = buf[bufstart:].hex()
-        print(hexbuf)
         counter = 0
         icmp6h.type = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
@@ -271,9 +270,8 @@ class icmp6header:
         counter += (8//4)
         icmp6h.checksum = (hexbuf[counter: counter + (16//4)])
         counter += (16//4)
-        print(icmp6h.type, icmp6h.code, icmp6h.checksum)
         if icmp6h.type in range(0,128):
-            print("ICMP6 error message")
+            # print("ICMP6 error message")
             match icmp6h.type:
                 case 1:
                     icmp6h.verbose = "Destination Unreachable" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
@@ -284,17 +282,17 @@ class icmp6header:
                 case 4:
                     icmp6h.verbose = "Parameter Problem"
                 case other:
-                    icmp6h.verbose = "unknown or invalid error message"
+                    icmp6h.verbose = "unknown or invalid error message: protocol " + str(icmp6h.type)
 
         else:
-            print("ICMP6 informational message")
+            # print("ICMP6 informational message")
             match icmp6h.type:
                 case 128:
                     icmp6h.verbose = "Echo Request"
                 case 129:
                     icmp6h.verbose = "Echo Reply"
                 case 133:
-                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-21 16 March 2024
+                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
                 case 134:
                     icmp6h.verbose = "Router Advertisement"
                 case 135:
@@ -305,7 +303,7 @@ class icmp6header:
                     icmp6h.verbose = "Redirect Message"
 
                 case other:
-                    icmp6h.verbose = "unknown or invalid informational message"
+                    icmp6h.verbose = "unknown or invalid informational message: protocol " + str(icmp6h.type)
         return icmp6h
 
 class udpheader:

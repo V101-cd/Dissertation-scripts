@@ -63,20 +63,18 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
             dstip = socket.inet_ntop(socket.AF_INET6, ip6h.dstaddrb)
             ipv6_key = (ip6h.flowlabel, srcip, dstip)
             add_to_stream(packet_num, pktbuf, ipv6_key, stream_dicts.IPV6_CONNECTIONDICT)
-            
             if (ip6h.nextheader == hex(UDP_PROTO)[2:]):
                 udph = udpheader.read(pktbuf, ETHHDRLEN + 40)
                 # if udph.dstport == 53: print('DNS packet')
                 udp_key = (udph.srcport, udph.dstport)
                 add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 return
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(UDP_PROTO)[2:])):
-                print(packet_num, ": IPv6 with UDP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-                # udph = udpheader.read(pktbuf, ETHHDRLEN + 40)
-                # # if udph.dstport == 53: print('DNS packet')
-                # udp_key = (udph.srcport, udph.dstport)
-                # add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1][0] == hex(UDP_PROTO)[2:])): ##extract value from tuple
+                print(packet_num, ": IPv6 with UDP in extension headers")
+                udph = udpheader.read(pktbuf, ETHHDRLEN + (ip6h.extheaders[-1][1]))
+                # if udph.dstport == 53: print('DNS packet')
+                udp_key = (udph.srcport, udph.dstport)
+                add_to_stream(packet_num, pktbuf, udp_key, stream_dicts.UDP_CONNECTIONDICT)
                 return
             if (ip6h.nextheader == hex(TCP_PROTO)[2:]):
                 print(packet_num, ": IPv6 with TCP")
@@ -87,27 +85,29 @@ def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
                 tcp_key = (ip6h.srcaddrb, localport, remoteaddrb, remoteport)
                 add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
 
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(TCP_PROTO)[2:])):
-                print(packet_num, ": IPv6 with TCP in extension headers") ######TODO : Implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1][0] == hex(TCP_PROTO)[2:])): ##extract value from tuple
+                print(packet_num, ": IPv6 with TCP in extension headers")
+                tcph = tcpheader.read(pktbuf, ETHHDRLEN + (ip6h.extheaders[-1][1]))
+                localport   = tcph.srcport
+                remoteport  = tcph.dstport
+                remoteaddrb = ip6h.dstaddrb
+                tcp_key = (ip6h.srcaddrb, localport, remoteaddrb, remoteport)
+                add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
                 return
-            # if (ip6h.nextheader != TCP_PROTO) : return # ignore if not TCP_PROTO or UDP_PROTO
-            # tcph = tcpheader.read(pktbuf, ETHHDRLEN + iph.iphdrlen)	# here we *do* allow for the possibility of header options
-            # if not tcph: return					# Again, tcpheader.read() returns None if it doesn't look like a TCP packet
-            # datalen = iph.length - iph.iphdrlen -tcph.tcphdrlen	# can't use len(pktbuf) because of tcpdump-applied trailers
-            # localport   = tcph.srcport
-            # remoteport  = tcph.dstport
-            # remoteaddrb = iph.dstaddrb
-            # tcp_key = (iph.srcaddrb, localport, remoteaddrb, remoteport)
-            # add_to_stream(packet_num, pktbuf, tcp_key, stream_dicts.TCP_CONNECTIONDICT)
                 
             if (ip6h.nextheader == hex(ICMPV6_PROTO)[2:]):
                 print(packet_num, ": IPv6 with ICMPv6")
                 icmp6h = icmp6header.read(pktbuf, ETHHDRLEN + 40)
                 icmp6h_key = (icmp6h.type, icmp6h.code, icmp6h.verbose)
                 add_to_stream(packet_num, pktbuf, icmp6h_key, stream_dicts.ICMP_V6_CONNECTIONDICT)
+                return
 
-            if (ip6h.extheaders != [] and (ip6h.extheaders[-1] == hex(ICMPV6_PROTO)[2:])):
-                print(packet_num, ": IPv6 with ICMPv6 in extension headers")
+            if (ip6h.extheaders != [] and (ip6h.extheaders[-1][0] == hex(ICMPV6_PROTO)[2:])): ##extract value from tuple
+                print(packet_num, ": IPv6 with ICMPv6 in extension headers",ip6h.extheaders[-1][0], ip6h.extheaders[-1][1])
+                icmp6h = icmp6header.read(pktbuf, ETHHDRLEN + (ip6h.extheaders[-1][1]))
+                icmp6h_key = (icmp6h.type, icmp6h.code, icmp6h.verbose)
+                add_to_stream(packet_num, pktbuf, icmp6h_key, stream_dicts.ICMP_V6_CONNECTIONDICT)
+                return
 
         case 0x0806: #ARP_PROTO
             arph = arpheader.read(pktbuf, ETHHDRLEN)
@@ -268,7 +268,7 @@ if len(input_pcaps) > 0:
                 icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
             print("icmp6 sum: ", icmpv6_sum)
 
-            print(ipv4_sum + ipv6_sum)
+            print(arp_sum + tcp_sum + udp_sum + icmpv4_sum + icmpv6_sum)
             # print(tcp_sum + udp_sum + icmpv4_sum + 10) ##in 3MW, add 10 for icmp6 packets
 
 
