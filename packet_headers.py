@@ -55,6 +55,10 @@ class ethheader:
     def read(buf : bytes, bufstart):
         ehdr = ethheader()
         (ehdr.dstaddr, ehdr.srcaddr, ehdr.ethtype) = struct.unpack_from('!6s6sH', buf, bufstart)
+        ehdr.srcaddr = bytearray(ehdr.srcaddr).hex()
+        ehdr.srcaddr = ':'.join(ehdr.srcaddr[i:i+2] for i in range (0, len(ehdr.srcaddr), 2))
+        ehdr.dstaddr = bytearray(ehdr.dstaddr).hex()
+        ehdr.dstaddr = ':'.join(ehdr.dstaddr[i:i+2] for i in range (0, len(ehdr.dstaddr), 2))
         return ehdr
         
     def write(self, buf : bytearray, bufstart):
@@ -145,6 +149,7 @@ class ip4header:
 
 class ip6header:
     def __init__(self):
+        self.version            = None  # should be 6
         self.trafficclassfield  = None	# like differentiated services in ipv4. 8 bits
         self.flowlabel          = None  # 20 bits, new for ipv6
         self.length             = None	# IP and TCP/UDP headers and DATA
@@ -152,27 +157,154 @@ class ip6header:
         self.hoplimit           = None
         self.srcaddrb           = None
         self.dstaddrb           = None
-        self.extheaders         = None # Extension headers
+        self.extheaders         = [] # Extension headers
 
     # the following static method returns an ip6header object
     @staticmethod
-    def read(buf : bytes, bufstart):
-        if (buf[bufstart] >> 4) != IPV6FLAG: 
-            eprint('packet not IPv6')
-            return None
+    def read(buf: bytes, bufstart):
+        hexbuf = buf[bufstart:].hex() ##because we convert the bytestream to hex, divide all offsets by 4
         ip6h = ip6header()
-        # ip6h.trafficclassfield = (buf[bufstart] & 0x0f) * 8
-        # if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip6h.iphdrlen) != 0xffff: return None 	# drop packet
-        a = struct.unpack_from('!s3sH1s1s16s16s', buf, bufstart)
-        (ip6h.trafficclassfield, ip6h.flowlabel, ip6h.length, ip6h.nextheader, ip6h.hoplimit, ip6h.srcaddrb, ip6h.dstaddrb) = a
-        # (ip6h.srcaddrb, ip6h.dstaddrb) = struct.unpack_from('16s16s', buf, bufstart+1)
+        counter = 0
+        ip6h.version = (hexbuf[counter: counter + (4//4)])
+        counter += (4//4)
+        ip6h.trafficclassfield = (hexbuf[counter: counter + (8//4)]) ##traffic class
+        counter += (8//4)
+        ip6h.flowlabel = (hexbuf[counter: counter + (20//4)]) ##flow label
+        counter += (20//4) 
+        ip6h.length = (hexbuf[counter: counter + (16//4)]) ##payload length
+        counter += (16//4) 
+        ip6h.nextheader = (hexbuf[counter: counter + (8//4)]) ##next header
+        counter += (8//4) 
+        ip6h.hoplimit = hexbuf[counter: counter + (8//4)] ##hop limit
+        counter += (8//4) 
+        ip6h.srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
+        counter += (128//4) 
+        ip6h.dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
+        counter += (128//4)
+        next_headers = []
+        if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
+            next_headers.append(((int(ip6h.nextheader, base=16)), counter//2)) ##tuple containing header type, and offset
+        ##RECURSIVELY FIND EXTENSION HEADERS
+        for header,offset in next_headers:
+            if header == 0: ## Hop-by-Hop Options Header
+                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
+                counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
+        ip6h.extheaders = next_headers
         return ip6h
 
-    def __str__(self):
-        protostr = 'UNKNOWN'
-        if self.nextheader == UDP_PROTO: protostr = 'UDP'
-        elif self.nextheader == TCP_PROTO: protostr = 'TCP'
-        return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
+    
+class icmp4header:
+    def __init__(self): ##datatracker.ietf.org/html/rfc792
+        self.type           = None #Type, 8 bits
+        self.code           = None #Code, 8 bits
+        self.checksum       = None #Checksum, 16 bits
+        self.verbose        = None
+        # self.ip4header      = None #IPv4 header
+        # self.datagrambytes  = None #first 64 bits of the datagram
+    
+    # We need the iphdr to verify the checksum
+    @staticmethod
+    def read(buf, bufstart):
+        icmph = icmp4header()
+        # (icmph.type, icmph.code, icmph.checksum, unused, icmph.ip4header, icmph.datagrambytes) = struct.unpack_from('!ss2s4sBHHHBBH4s4s8s', buf, bufstart)
+        hexbuf = buf[bufstart:].hex()
+        # print(hexbuf)
+        counter = 0
+        icmph.type = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmph.code = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmph.checksum = (hexbuf[counter: counter + (16//4)])
+        counter += (16//4)
+        # print(icmph.type, icmph.code, icmph.checksum)
+        match icmph.type:
+            case 0:
+                icmph.verbose = "ICMP Echo Reply"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
+            case 3:
+                icmph.verbose = "ICMP Destination Unreachable"
+            case 4:
+                icmph.verbose = "ICMP Source Quench"
+            case 5:
+                icmph.verbose = "ICMP Redirect"
+            case 8:
+                icmph.verbose = "ICMP Echo"
+            case 11:
+                icmph.verbose = "ICMP Time Exceeded"
+            case 12:
+                icmph.verbose = "ICMP Parameter Problem"
+            case 13:
+                icmph.verbose = "ICMP Timestamp"
+            case 14:
+                icmph.verbose = "ICMP Timestamp Reply"
+            case 15:
+                icmph.verbose = "ICMP Information Request"
+            case 16:
+                icmph.verbose = "ICMP Information Reply"
+        # if VERIFY_CHECKSUMS and udph.chksum != 0:
+        #     if not iphdr: 
+        #         eprint('call to udpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad UDP checksum received')
+        #         return None
+        return icmph
+
+class icmp6header:
+    def __init__(self): ##rfc-editor.org/rfc/rfc8335 16 March 2024
+        self.type           = None #Type, 8 bits
+        self.code           = None #Code, 8 bits
+        self.checksum       = None #Checksum, 16 bits
+        self.identifier     = None #Identifier, 16 bits
+        self.seqnum         = None #Sequence number, 8 bits
+        self.verbose        = None
+
+    @staticmethod
+    def read(buf, bufstart):
+        icmp6h = icmp6header()
+        hexbuf = buf[bufstart:].hex()
+        counter = 0
+        icmp6h.type = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmp6h.code = int(hexbuf[counter: counter + (8//4)], base=16)
+        counter += (8//4)
+        icmp6h.checksum = (hexbuf[counter: counter + (16//4)])
+        counter += (16//4)
+        if icmp6h.type in range(0,128):
+            # print("ICMP6 error message")
+            match icmp6h.type:
+                case 1:
+                    icmp6h.verbose = "Destination Unreachable" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                case 2:
+                    icmp6h.verbose = "Packet Too Big"
+                case 3:
+                    icmp6h.verbose = "Time Exceeded"
+                case 4:
+                    icmp6h.verbose = "Parameter Problem"
+                case other:
+                    icmp6h.verbose = "unknown or invalid error message: protocol " + str(icmp6h.type)
+
+        else:
+            # print("ICMP6 informational message")
+            match icmp6h.type:
+                case 128:
+                    icmp6h.verbose = "Echo Request"
+                case 129:
+                    icmp6h.verbose = "Echo Reply"
+                case 133:
+                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
+                case 134:
+                    icmp6h.verbose = "Router Advertisement"
+                case 135:
+                    icmp6h.verbose = "Neighbor Solicitation"
+                case 136:
+                    icmp6h.verbose = "Neighbor Advertisement"
+                case 137:
+                    icmp6h.verbose = "Redirect Message"
+
+                case other:
+                    icmp6h.verbose = "unknown or invalid informational message: protocol " + str(icmp6h.type)
+        return icmp6h
 
 class udpheader:
     def __init__(self):
@@ -202,8 +334,7 @@ class udpheader:
         struct.pack_into('!HHHH', buf, bufstart, self.srcport, self.dstport, self.length, 0)
         # checksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, iphdr.length)
         # struct.pack_into('!H', buf, bufstart+ 6, 0xFFFF - checksum)		# checksum has offset 6
-
-        
+    
 class tcpheader:  
     def __init__(self):
         self.tcphdrlen= None

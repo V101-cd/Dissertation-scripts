@@ -1,11 +1,13 @@
-TLS_CONNECTIONDICT = {} ##maybe not possible
-TCP_CONNECTIONDICT = {} #done
-UDP_CONNECTIONDICT = {} #done
-QUIC_CONNECTIONDICT = {} ##maybe not possible
-DNS_CONNECTIONDICT = {} #maybe not possible
-IPV4_CONNECTIONDICT = {} #done
-ICMP_V4_CONNECTIONDICT = {}
-IPV6_CONNECTIONDICT = {} #done
-ICMP_V6_CONNECTIONDICT = {}
-ARP_CONNECTIONDICT = {} #done
-ETHERNET_CONNECTIONDICT = {} #done
+class connections():
+    def __init__(self):
+        self.TLS_CONNECTIONDICT = {} ##maybe not possible
+        self.TCP_CONNECTIONDICT = {} #done
+        self.UDP_CONNECTIONDICT = {} #done
+        self.QUIC_CONNECTIONDICT = {} ##maybe not possible
+        self.DNS_CONNECTIONDICT = {} #maybe not possible
+        self.IPV4_CONNECTIONDICT = {} #done
+        self.ICMP_V4_CONNECTIONDICT = {} #done
+        self.IPV6_CONNECTIONDICT = {} #done
+        self.ICMP_V6_CONNECTIONDICT = {} #done
+        self.ARP_CONNECTIONDICT = {} #done
+        self.ETHERNET_CONNECTIONDICT = {} #done
