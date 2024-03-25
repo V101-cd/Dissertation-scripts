@@ -162,9 +162,9 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
     print('There were {} packets captured in {}'.format(PACKET_COUNT, FILENAME))
 
 # try:
-num_packets = len(sys.argv)-1
-for i in range(num_packets): ##don't include the python script
-    INPUT_PCAPS.append(sys.argv[i+1]) ##first index is the tool itself
+# num_packets = len(sys.argv)-1
+# for i in range(num_packets): ##don't include the python script
+#     INPUT_PCAPS.append(sys.argv[i+1]) ##first index is the tool itself
 input_pcaps = set(INPUT_PCAPS) #remove duplicate pcaps
 print(input_pcaps)
 if len(input_pcaps) > 0:
@@ -180,77 +180,77 @@ if len(input_pcaps) > 0:
             FILENAME = pcap
             process_packets(FILENAME)
 
-            try:
-                dumpdict(stream_dicts.TCP_CONNECTIONDICT, "TCP")
-            except:
-                print("TCP stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.UDP_CONNECTIONDICT, "UDP")
-            except:
-                print("UDP stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.IPV4_CONNECTIONDICT, "IPv4")
-            except:
-                print("IPv4 stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.ICMP_V4_CONNECTIONDICT, "ICMPv4")
-            except:
-                print("ICMPv4 stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
-            except:
-                print("IPv6 stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.ICMP_V6_CONNECTIONDICT, "ICMPv6")
-            except:
-                print("ICMPv6 stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
-            except:
-                print("ARP stream could not be analysed")
-            try:
-                dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
-            except:
-                print("Ethernet stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.TCP_CONNECTIONDICT, "TCP")
+            # except:
+            #     print("TCP stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.UDP_CONNECTIONDICT, "UDP")
+            # except:
+            #     print("UDP stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.IPV4_CONNECTIONDICT, "IPv4")
+            # except:
+            #     print("IPv4 stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.ICMP_V4_CONNECTIONDICT, "ICMPv4")
+            # except:
+            #     print("ICMPv4 stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
+            # except:
+            #     print("IPv6 stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.ICMP_V6_CONNECTIONDICT, "ICMPv6")
+            # except:
+            #     print("ICMPv6 stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
+            # except:
+            #     print("ARP stream could not be analysed")
+            # try:
+            #     dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
+            # except:
+            #     print("Ethernet stream could not be analysed")
         
-            eth_sum = 0
-            for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
-                eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
-            print("eth_sum: ", eth_sum)
+            # eth_sum = 0
+            # for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
+            #     eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
+            # print("eth_sum: ", eth_sum)
 
-            arp_sum = 0
-            for key in stream_dicts.ARP_CONNECTIONDICT.keys():
-                arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
-            print("arp_sum: ", arp_sum)
+            # arp_sum = 0
+            # for key in stream_dicts.ARP_CONNECTIONDICT.keys():
+            #     arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
+            # print("arp_sum: ", arp_sum)
 
-            ipv4_sum = 0
-            for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
-                ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
-            print("ip4 sum: ", ipv4_sum)
+            # ipv4_sum = 0
+            # for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
+            #     ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
+            # print("ip4 sum: ", ipv4_sum)
 
-            ipv6_sum = 0
-            for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
-                ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
-            print("ip6 sum: ", ipv6_sum)
+            # ipv6_sum = 0
+            # for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
+            #     ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
+            # print("ip6 sum: ", ipv6_sum)
 
-            tcp_sum = 0
-            for key in stream_dicts.TCP_CONNECTIONDICT.keys():
-                tcp_sum += len(stream_dicts.TCP_CONNECTIONDICT[key])
-            print("tcp_sum: ", tcp_sum)
+            # tcp_sum = 0
+            # for key in stream_dicts.TCP_CONNECTIONDICT.keys():
+            #     tcp_sum += len(stream_dicts.TCP_CONNECTIONDICT[key])
+            # print("tcp_sum: ", tcp_sum)
 
-            udp_sum = 0
-            for key in stream_dicts.UDP_CONNECTIONDICT.keys():
-                udp_sum += len(stream_dicts.UDP_CONNECTIONDICT[key])
-            print("udp_sum: ", udp_sum)
+            # udp_sum = 0
+            # for key in stream_dicts.UDP_CONNECTIONDICT.keys():
+            #     udp_sum += len(stream_dicts.UDP_CONNECTIONDICT[key])
+            # print("udp_sum: ", udp_sum)
 
-            icmpv4_sum = 0
-            for key in stream_dicts.ICMP_V4_CONNECTIONDICT.keys():
-                icmpv4_sum += len(stream_dicts.ICMP_V4_CONNECTIONDICT[key])
-            print("icmp4 sum: ", icmpv4_sum)
+            # icmpv4_sum = 0
+            # for key in stream_dicts.ICMP_V4_CONNECTIONDICT.keys():
+            #     icmpv4_sum += len(stream_dicts.ICMP_V4_CONNECTIONDICT[key])
+            # print("icmp4 sum: ", icmpv4_sum)
 
-            icmpv6_sum = 0
-            for key in stream_dicts.ICMP_V6_CONNECTIONDICT.keys():
-                icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
-            print("icmp6 sum: ", icmpv6_sum)
+            # icmpv6_sum = 0
+            # for key in stream_dicts.ICMP_V6_CONNECTIONDICT.keys():
+            #     icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
+            # print("icmp6 sum: ", icmpv6_sum)
 
-            print(arp_sum + tcp_sum + udp_sum + icmpv4_sum + icmpv6_sum)
+            # print(arp_sum + tcp_sum + udp_sum + icmpv4_sum + icmpv6_sum)
