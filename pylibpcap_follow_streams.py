@@ -55,7 +55,9 @@ class packet:
                 self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header) #self.get_ip4_header(self.packet_buff, ETHHDRLEN)
                 if self.ip4h != None:
                     self.protocols["ip4"] = self.ip4h
-                    self.ip4_key = (self.ip4h.srcaddrb, self.ip4h.dstaddrb)
+                    srcip = socket.inet_ntoa(self.ip4h.srcaddrb)
+                    dstip = socket.inet_ntoa(self.ip4h.dstaddrb)
+                    self.ip4_key = (srcip, dstip)
                     match self.ip4h.proto:
                         case 1:
                             self.icmp4h = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, icmp4header)
@@ -66,7 +68,7 @@ class packet:
                             self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, tcpheader)
                             if self.tcph != None:
                                 self.protocols["tcp"] = self.tcph
-                                self.tcp_key = (self.ip4h.srcaddrb, self.tcph.srcport, self.ip4h.dstaddrb, self.tcph.dstport)
+                                self.tcp_key = (srcip, self.tcph.srcport, dstip, self.tcph.dstport)
                         case 17:
                             self.udph = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, udpheader)
                             if self.udph != None:
@@ -98,14 +100,14 @@ class packet:
                         self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + 40, tcpheader)
                         if self.tcph != None:
                             self.protocols["tcp"] = self.tcph
-                            self.tcp_key = (self.ip6h.srcaddrb, self.tcph.srcport, self.ip6h.dstaddrb, self.tcph.dstport)
+                            self.tcp_key = (srcip, self.tcph.srcport, dstip, self.tcph.dstport)
 
 
                     if (self.ip6h.extheaders != [] and (self.ip6h.extheaders[-1][0] == hex(TCP_PROTO)[2:])): ##extract value from tuple
                         self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + (self.ip6h.extheaders[-1][1]), tcpheader)
                         if self.tcph != None:
                             self.protocols["tcp"] = self.tcph
-                            self.tcp_key = (self.ip6h.srcaddrb, self.tcph.srcport, self.ip6h.dstaddrb, self.tcph.dstport)
+                            self.tcp_key = (srcip, self.tcph.srcport, dstip, self.tcph.dstport)
 
                     if (self.ip6h.nextheader == hex(UDP_PROTO)[2:]):
                         self.udph = self.get_header(self.packet_buff, ETHHDRLEN + 40, udpheader)
