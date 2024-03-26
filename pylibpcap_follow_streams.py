@@ -11,19 +11,29 @@ from stream_dictionaries import connections
 
 FILENAME=''
 INPUT_PCAPS= []
+PACKET_COUNT = 0
 
-# LOCALADDR='192.168.4.5'	# the client IP address
-# LOCALADDRB = socket.inet_aton(LOCALADDR)
     
-def process_packets(fname):
-    global PACKET_COUNT
-    sum = 0
-    count=0
-    for length, time, pktbuf in rpcap(fname):		# here is where we examine each packet
+def process_packets_print(fname, stream_dicts):
+    PACKET_COUNT = 0
+    for length, time, pktbuf in rpcap(fname):		# here we examine each packet
         PACKET_COUNT += 1
-        process_one_pkt(PACKET_COUNT, length, time, pktbuf, ETHHDRLEN)
+        process_one_pkt(PACKET_COUNT, length, time, pktbuf, ETHHDRLEN, stream_dicts)
 
-def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos):
+def process_packets_api(fname, stream_dicts):
+    PACKET_COUNT = 0
+    for length, time, pktbuf in rpcap(fname):		# here we examine each packet
+        PACKET_COUNT += 1
+        process_one_pkt(PACKET_COUNT, length, time, pktbuf, ETHHDRLEN, stream_dicts)
+    packet_api = {}
+    for packet_num in range(1,PACKET_COUNT+1):
+        packet_api[packet_num] = []
+        for connection in stream_dicts.get_connections() :
+            if packet_num in connection:
+                packet_api[packet_num].append((connection, connection))
+    return packet_api
+
+def process_one_pkt(packet_num, length, time, pktbuf : bytes, startpos, stream_dicts):
     ethh= ethheader.read(pktbuf, 0)
     eth_key = (ethh.dstaddr, ethh.srcaddr, ethh.ethtype)
     add_to_stream(packet_num, pktbuf, eth_key, stream_dicts.ETHERNET_CONNECTIONDICT)
@@ -162,95 +172,118 @@ def dumpdict(d, dict_name):		# d[key] is a list of packets
     print('There were {} packets captured in {}'.format(PACKET_COUNT, FILENAME))
 
 # try:
-# num_packets = len(sys.argv)-1
-# for i in range(num_packets): ##don't include the python script
-#     INPUT_PCAPS.append(sys.argv[i+1]) ##first index is the tool itself
-input_pcaps = set(INPUT_PCAPS) #remove duplicate pcaps
-print(input_pcaps)
-if len(input_pcaps) > 0:
-    print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
-    for pcap in input_pcaps:
-        stream_dicts = connections() #re-initialise the connection dictionaries
-        PACKET_COUNT = 0 #re-initialise the packet counter
-        print("\n\n", pcap)
-        pcap_name = pcap.split('.')
-        if pcap.split('.')[-1].lower() != 'pcap':
-            print(f"File {pcap} not a pcap. Aborting.\n")
-        else:
-            FILENAME = pcap
-            process_packets(FILENAME)
 
-            # try:
-            #     dumpdict(stream_dicts.TCP_CONNECTIONDICT, "TCP")
-            # except:
-            #     print("TCP stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.UDP_CONNECTIONDICT, "UDP")
-            # except:
-            #     print("UDP stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.IPV4_CONNECTIONDICT, "IPv4")
-            # except:
-            #     print("IPv4 stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.ICMP_V4_CONNECTIONDICT, "ICMPv4")
-            # except:
-            #     print("ICMPv4 stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
-            # except:
-            #     print("IPv6 stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.ICMP_V6_CONNECTIONDICT, "ICMPv6")
-            # except:
-            #     print("ICMPv6 stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
-            # except:
-            #     print("ARP stream could not be analysed")
-            # try:
-            #     dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
-            # except:
-            #     print("Ethernet stream could not be analysed")
-        
-            # eth_sum = 0
-            # for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
-            #     eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
-            # print("eth_sum: ", eth_sum)
+def print_from_terminal():
+    num_packets = len(sys.argv)-1
+    for i in range(num_packets): ##don't include the python script
+        INPUT_PCAPS.append(sys.argv[i+1]) ##first index is the tool itself
+    input_pcaps = set(INPUT_PCAPS) #remove duplicate pcaps
+    print(input_pcaps)
+    if len(input_pcaps) > 0:
+        print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
+        for pcap in input_pcaps:
+            # PACKET_COUNT = 0 #re-initialise the packet counter
+            stream_dicts = connections() #re-initialise the connection dictionaries
+            print("\n\n", pcap)
+            pcap_name = pcap.split('.')
+            if pcap.split('.')[-1].lower() != 'pcap':
+                print(f"File {pcap} not a pcap. Aborting.\n")
+            else:
+                FILENAME = pcap
+                process_packets_print(FILENAME, stream_dicts)
 
-            # arp_sum = 0
-            # for key in stream_dicts.ARP_CONNECTIONDICT.keys():
-            #     arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
-            # print("arp_sum: ", arp_sum)
+                # try:
+                #     dumpdict(stream_dicts.TCP_CONNECTIONDICT, "TCP")
+                # except:
+                #     print("TCP stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.UDP_CONNECTIONDICT, "UDP")
+                # except:
+                #     print("UDP stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.IPV4_CONNECTIONDICT, "IPv4")
+                # except:
+                #     print("IPv4 stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.ICMP_V4_CONNECTIONDICT, "ICMPv4")
+                # except:
+                #     print("ICMPv4 stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.IPV6_CONNECTIONDICT, "IPv6")
+                # except:
+                #     print("IPv6 stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.ICMP_V6_CONNECTIONDICT, "ICMPv6")
+                # except:
+                #     print("ICMPv6 stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.ARP_CONNECTIONDICT, "ARP")
+                # except:
+                #     print("ARP stream could not be analysed")
+                # try:
+                #     dumpdict(stream_dicts.ETHERNET_CONNECTIONDICT, "Ethernet")
+                # except:
+                #     print("Ethernet stream could not be analysed")
+            
+                eth_sum = 0
+                for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
+                    eth_sum += len(stream_dicts.ETHERNET_CONNECTIONDICT[key])
+                print("eth_sum: ", eth_sum)
 
-            # ipv4_sum = 0
-            # for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
-            #     ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
-            # print("ip4 sum: ", ipv4_sum)
+                arp_sum = 0
+                for key in stream_dicts.ARP_CONNECTIONDICT.keys():
+                    arp_sum += len(stream_dicts.ARP_CONNECTIONDICT[key])
+                print("arp_sum: ", arp_sum)
 
-            # ipv6_sum = 0
-            # for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
-            #     ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
-            # print("ip6 sum: ", ipv6_sum)
+                ipv4_sum = 0
+                for key in stream_dicts.IPV4_CONNECTIONDICT.keys():
+                    ipv4_sum += len(stream_dicts.IPV4_CONNECTIONDICT[key])
+                print("ip4 sum: ", ipv4_sum)
 
-            # tcp_sum = 0
-            # for key in stream_dicts.TCP_CONNECTIONDICT.keys():
-            #     tcp_sum += len(stream_dicts.TCP_CONNECTIONDICT[key])
-            # print("tcp_sum: ", tcp_sum)
+                ipv6_sum = 0
+                for key in stream_dicts.IPV6_CONNECTIONDICT.keys():
+                    ipv6_sum += len(stream_dicts.IPV6_CONNECTIONDICT[key])
+                print("ip6 sum: ", ipv6_sum)
 
-            # udp_sum = 0
-            # for key in stream_dicts.UDP_CONNECTIONDICT.keys():
-            #     udp_sum += len(stream_dicts.UDP_CONNECTIONDICT[key])
-            # print("udp_sum: ", udp_sum)
+                tcp_sum = 0
+                for key in stream_dicts.TCP_CONNECTIONDICT.keys():
+                    tcp_sum += len(stream_dicts.TCP_CONNECTIONDICT[key])
+                print("tcp_sum: ", tcp_sum)
 
-            # icmpv4_sum = 0
-            # for key in stream_dicts.ICMP_V4_CONNECTIONDICT.keys():
-            #     icmpv4_sum += len(stream_dicts.ICMP_V4_CONNECTIONDICT[key])
-            # print("icmp4 sum: ", icmpv4_sum)
+                udp_sum = 0
+                for key in stream_dicts.UDP_CONNECTIONDICT.keys():
+                    udp_sum += len(stream_dicts.UDP_CONNECTIONDICT[key])
+                print("udp_sum: ", udp_sum)
 
-            # icmpv6_sum = 0
-            # for key in stream_dicts.ICMP_V6_CONNECTIONDICT.keys():
-            #     icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
-            # print("icmp6 sum: ", icmpv6_sum)
+                icmpv4_sum = 0
+                for key in stream_dicts.ICMP_V4_CONNECTIONDICT.keys():
+                    icmpv4_sum += len(stream_dicts.ICMP_V4_CONNECTIONDICT[key])
+                print("icmp4 sum: ", icmpv4_sum)
 
-            # print(arp_sum + tcp_sum + udp_sum + icmpv4_sum + icmpv6_sum)
+                icmpv6_sum = 0
+                for key in stream_dicts.ICMP_V6_CONNECTIONDICT.keys():
+                    icmpv6_sum += len(stream_dicts.ICMP_V6_CONNECTIONDICT[key])
+                print("icmp6 sum: ", icmpv6_sum)
+
+                print(arp_sum + tcp_sum + udp_sum + icmpv4_sum + icmpv6_sum)
+
+def process_from_files():
+    num_packets = len(sys.argv)-1
+    for i in range(num_packets): ##don't include the python script
+        INPUT_PCAPS.append(sys.argv[i+1]) ##first index is the tool itself
+    input_pcaps = set(INPUT_PCAPS) #remove duplicate pcaps
+    print(input_pcaps)
+    if len(input_pcaps) > 0:
+        print(f"You have entered {len(input_pcaps)} unique files to be parsed.\n")
+        for pcap in input_pcaps:
+            # PACKET_COUNT = 0 #re-initialise the packet counter
+            stream_dicts = connections() #re-initialise the connection dictionaries
+            print("\n\n", pcap)
+            pcap_name = pcap.split('.')
+            if pcap.split('.')[-1].lower() != 'pcap':
+                print(f"File {pcap} not a pcap. Aborting.\n")
+            else:
+                FILENAME = pcap
+                process_packets_api(FILENAME, stream_dicts)
+
+process_from_files()

@@ -142,7 +142,7 @@ class MainWindow(QMainWindow):
             selected_files = dialog.selectedFiles()
             for pcap in set(selected_files):
                 pass ########TODO: implement API in parser which takes in a filename and returns a dictionary for each packet and its connections
-            self.display_pcap_list(parser.PACKET_COUNT)
+            self.display_pcap_list(PACKET_COUNT)
             # print(selected_files)
     
     def display_pcap_list(self, pcap_list):

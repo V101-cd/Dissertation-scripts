@@ -11,3 +11,13 @@ class connections():
         self.ICMP_V6_CONNECTIONDICT = {} #done
         self.ARP_CONNECTIONDICT = {} #done
         self.ETHERNET_CONNECTIONDICT = {} #done
+    
+    def get_connections(self):
+        return [("TCP", self.TCP_CONNECTIONDICT),
+                ("UDP", self.UDP_CONNECTIONDICT),
+                ("IPV4", self.IPV4_CONNECTIONDICT),
+                ("ICMPV4", self.ICMP_V4_CONNECTIONDICT),
+                ("IPV6", self.IPV6_CONNECTIONDICT),
+                ("ICMPV6", self.ICMP_V6_CONNECTIONDICT),
+                ("ARP", self.ARP_CONNECTIONDICT),
+                ("Ethernet", self.ETHERNET_CONNECTIONDICT)]
