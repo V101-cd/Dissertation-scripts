@@ -76,8 +76,6 @@ class packet:
                                 self.udp_key = (self.udph.srcport, self.udph.dstport)     
             case 0x86DD:
                 self.ip6h = self.get_header(self.packet_buff, ETHHDRLEN, ip6header)
-                # srcip = socket.inet_ntop(socket.AF_INET6, ip6h.srcaddrb)
-                # dstip = socket.inet_ntop(socket.AF_INET6, ip6h.dstaddrb)
                 if self.ip6h != None:
                     self.protocols["ip6"] =  self.ip6h
                     srcip = socket.inet_ntop(socket.AF_INET6, self.ip6h.srcaddrb)
@@ -167,10 +165,12 @@ class pcap:
         PACKET_COUNT = 0
         self.fname = filename
         self.stream_dicts = connections()
+        self.packet_headers = {}
         for length, time, pktbuf in rpcap(self.fname):		# here we examine each packet
             PACKET_COUNT += 1
             single_packet = packet(PACKET_COUNT, length, time, pktbuf)
             single_packet_num, single_packet_protocols = single_packet.get_protocols()
+            self.packet_headers[single_packet_num] = single_packet_protocols
             for connection_name, connection_dict in self.stream_dicts.get_connections():
                 key = None
                 if connection_name.lower() in single_packet_protocols:
@@ -202,6 +202,9 @@ class pcap:
 
     def get_connections(self):
         return self.stream_dicts.get_connections()
+    
+    def get_packet_headers(self):
+        return self.packet_headers
 
 def print_from_terminal():
     num_packets = len(sys.argv)-1
@@ -290,4 +293,4 @@ def print_from_terminal():
 #                 FILENAME = pcap
 #                 process_packets_api(FILENAME, stream_dicts)
                     
-print_from_terminal()
+# print_from_terminal()

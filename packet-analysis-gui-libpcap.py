@@ -136,20 +136,22 @@ class MainWindow(QMainWindow):
     def pcap_loader(self):
         dialog = QFileDialog()
         dialog.setNameFilter("All PCAP files (*.pcap)") ## only open PCAP files
-        dialog.setFileMode(QFileDialog.FileMode.ExistingFiles) ## only let the user open files already created
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile) ## only let the user open files already created
         dialogSuccess = dialog.exec() ## has the user clicked 'Open'? returns 1 (True) if successful, 0 (False) if not (inc. if closed)
         if dialogSuccess:
             selected_files = dialog.selectedFiles()
-            for pcap in set(selected_files):
-                pass ########TODO: implement API in parser which takes in a filename and returns a dictionary for each packet and its connections
-            self.display_pcap_list(PACKET_COUNT)
+            for pcap_name in set(selected_files): ##restrict the user to only selecting one file at a time
+                pcap_dicts = parser.pcap(pcap_name).get_packet_headers()
+                self.display_pcap_list(pcap_dicts)
             # print(selected_files)
     
     def display_pcap_list(self, pcap_list):
-        for i in range(len(pcap_list)):
-           pcap_row_label = QLabel("Packet " + str(i))
-           self.pcap_rows.addWidget(pcap_row_label)
-        self.pcap_rows_widget.setLayout(self.pcap_rows)
+        if len(pcap_list) > 25000:
+            pcap_list = dict(list(pcap_list.items())[:5000])
+        for i in range(1,len(pcap_list)+1):
+            pcap_row_label = QLabel("Packet " + str(i))
+            self.pcap_rows.addWidget(pcap_row_label)
+            self.pcap_rows_widget.setLayout(self.pcap_rows)
 
         
     def get_Ethernet_headers(self, packet_info):
