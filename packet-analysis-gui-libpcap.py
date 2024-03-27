@@ -108,17 +108,21 @@ class MainWindow(QMainWindow):
         packet_info = ['fc:44:82:39:bc:1e', 'dc:a6:32:66:cd:5a', '0x800', b'E\x00\x009\xe4\x1b@\x00\x80\x11\xa4\xe5\xc0\xa8\x04\x05\xd8:\xd4\xca\xc2&\x01\xbb\x00%\xfe@@\xe9h\xef\xf7\xd3\xe4~>\xd9F\xf3\xa7v\x97U\xf0^E\x1e\xc1\x8f\xc7\x96\xd0\xe3\x08\x82\xe9'] ##dpkt identifies this length as 57 bytes (well, 57 something)
         udp_packet_info = [56375, 443, 42, 61632, b"]\xfac\xc5\ns\xbb\xee-\x18\xea\x07\xab\xec\xc8\xdb\xaf\xea\x8bv\xd55?\xec\x1f\x13\x99\xa6Q'\xd0\xe7\xe9\xf9"]
         # packet_info = "<bound method Ethernet.__bytes__ of Ethernet(dst=b'\xfcD\x829\xbc\x1e', src=b'\xdc\xa62f\xcdZ', data=IP(tos=128, len=53, df=1, ttl=57, p=17, sum=14722, src=b'\x8e\xfa\xb4\x0e', dst=b'\xc0\xa8\x04\x05', opts=b'', data=UDP(sport=443, dport=51865, ulen=33, sum=47964, data=b'ZU\x1e\xa5\x9b\xfa\x84m\xcb\xb41]\xf8\xde\xdd\xdb\xd2\x8f\xda(`\r\x0fN\xe7')))>"
-        eth_btn = QPushButton("Ethernet")
-        # btn.pressed.connect(self.activate_tab_1)
-        eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
-        packet_layer_button_layout.addWidget(eth_btn)
+        self.eth_btn = QPushButton("Ethernet")
+        self.eth_btn.hide()
+        self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
+        packet_layer_button_layout.addWidget(self.eth_btn)
         # label_ethernet = QLabel()
         # label_ethernet.setStyleSheet('QLabel{background-color:purple}')
         # self.stacklayout.addWidget(label_ethernet)
         
-        udp_btn = QPushButton("UDP")
-        udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
-        packet_layer_button_layout.addWidget(udp_btn)
+        self.udp_btn = QPushButton("UDP")
+        self.udp_btn.hide()
+        self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
+        packet_layer_button_layout.addWidget(self.udp_btn)
+
+        # if packet_button in self.pcap_row_buttons .connect(lambda: self.packet_btn_clicked(i, pcap_list[i]))
+
         # label_udp = QLabel()
         # label_udp.setStyleSheet('QLabel{background-color:none}')
         # self.stacklayout.addWidget(label_udp)
@@ -143,7 +147,7 @@ class MainWindow(QMainWindow):
         dialogSuccess = dialog.exec() ## has the user clicked 'Open'? returns 1 (True) if successful, 0 (False) if not (inc. if closed)
         if dialogSuccess:
             self.clear_layout_view()
-            self.pcap_loading_status.setText("Parsing pcap...")
+            self.pcap_loading_status.setText("Parsing PCAP...")
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
             pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
@@ -153,7 +157,7 @@ class MainWindow(QMainWindow):
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
-            self.pcap_loading_status.setText("Pcap successfully loaded!")
+            self.pcap_loading_status.setText("PCAP successfully loaded!")
             QApplication.processEvents()
 
     
@@ -161,16 +165,16 @@ class MainWindow(QMainWindow):
         pcap_rows_widget = QWidget()
         pcap_rows = QVBoxLayout()
         pcap_len = len(pcap_list)
-        for i in range(1,pcap_len+1):
-            pcap_row_label = QLabel("Packet " + str(i))
-            pcap_rows.addWidget(pcap_row_label)
+        self.pcap_row_buttons = []
+        for i in range(pcap_len):
+            # pcap_row_btn = QPushButton("Packet " + str(i))
+            self.pcap_row_buttons.append(QPushButton("Packet " + str(i+1)))
+            pcap_rows.addWidget(self.pcap_row_buttons[i])
             print(i)
         print("Label generation completed")
         pcap_rows_widget.setLayout(pcap_rows)
         print("Setting scroll_area")
         return pcap_rows_widget
-        # print("Scroll_area set")
-
 
     def clear_layout_view(self):
         # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
@@ -178,6 +182,10 @@ class MainWindow(QMainWindow):
         #     child.deleteLater()
         self.scroll_area.setWidget(QWidget())
         
+    def packet_btn_clicked(self, packet_num, packet_headers):
+        self.eth_btn.show()
+        self.udp_btn.show()
+        print(packet_num, packet_headers)
         
     def get_Ethernet_headers(self, packet_info):
         print(packet_info.split('('))
