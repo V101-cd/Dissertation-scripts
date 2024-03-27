@@ -136,35 +136,48 @@ class MainWindow(QMainWindow):
     
     def pcap_loader(self):
         self.pcap_loading_status.setText("Loading pcap...")
+        QApplication.processEvents()
         dialog = QFileDialog()
         dialog.setNameFilter("All PCAP files (*.pcap)") ## only open PCAP files
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile) ## only let the user open files already created; only lets the user import one file at a time
         dialogSuccess = dialog.exec() ## has the user clicked 'Open'? returns 1 (True) if successful, 0 (False) if not (inc. if closed)
         if dialogSuccess:
+            self.clear_layout_view()
+            self.pcap_loading_status.setText("Parsing pcap...")
+            QApplication.processEvents()
             selected_files = dialog.selectedFiles()
             pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
-            print(len(pcap_dicts))
-            self.display_pcap_list(pcap_dicts)
-            # print(selected_files)
-            self.pcap_loading_status.setText("Parsing complete!")
+            self.pcap_loading_status.setText("Displaying packets...")
+            QApplication.processEvents()
+            pcap_packets_widget = self.display_pcap_list(pcap_dicts)
+            print("packets_widget received in calling function")
+            self.scroll_area.setWidget(pcap_packets_widget)
+            self.scroll_area.show()
+            self.pcap_loading_status.setText("Pcap successfully loaded!")
+            QApplication.processEvents()
 
     
     def display_pcap_list(self, pcap_list):
-        print("Displaying packets...")
         pcap_rows_widget = QWidget()
         pcap_rows = QVBoxLayout()
         pcap_len = len(pcap_list)
-        # if pcap_len > 25000:
-        #     pcap_list = dict(list(pcap_list.items())[:1000])
         for i in range(1,pcap_len+1):
             pcap_row_label = QLabel("Packet " + str(i))
-            # pcap_row_label.deleteLater()
-            # pcap_rows.addWidget(pcap_row_label)
-            # pcap_rows_widget.setLayout(pcap_rows)
-            # self.scroll_area.setWidget(pcap_rows_widget)
+            pcap_rows.addWidget(pcap_row_label)
+            print(i)
+        print("Label generation completed")
+        pcap_rows_widget.setLayout(pcap_rows)
+        print("Setting scroll_area")
+        return pcap_rows_widget
+        # print("Scroll_area set")
+
 
     def clear_layout_view(self):
-        self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
+        # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
+        # for child in self.scroll_area.children():
+        #     child.deleteLater()
+        self.scroll_area.setWidget(QWidget())
+        
         
     def get_Ethernet_headers(self, packet_info):
         print(packet_info.split('('))
