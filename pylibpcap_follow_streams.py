@@ -293,4 +293,4 @@ def print_from_terminal():
 #                 FILENAME = pcap
 #                 process_packets_api(FILENAME, stream_dicts)
                     
-# print_from_terminal()
+print_from_terminal()
