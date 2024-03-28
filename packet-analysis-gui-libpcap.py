@@ -10,8 +10,11 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QRadioButton,
     QButtonGroup,
+    QListWidget,
+    QListWidgetItem,
     QScrollArea,
     QStackedLayout,
+    QToolButton,
     QVBoxLayout,
     QWidget,
     QTableWidget,
@@ -150,10 +153,10 @@ class MainWindow(QMainWindow):
             self.pcap_loading_status.setText("Parsing PCAP...")
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
-            pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
+            self.pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
             self.pcap_loading_status.setText("Displaying packets...")
             QApplication.processEvents()
-            pcap_packets_widget = self.display_pcap_list(pcap_dicts)
+            pcap_packets_widget = self.display_pcap_list()
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
@@ -161,20 +164,34 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
 
     
-    def display_pcap_list(self, pcap_list):
+    def display_pcap_list(self):
         pcap_rows_widget = QWidget()
         pcap_rows = QVBoxLayout()
-        pcap_len = len(pcap_list)
-        self.pcap_row_buttons = []
+        pcap_len = len(self.pcap_dicts)
+        # self.pcap_row_buttons = []
         for i in range(pcap_len):
-            # pcap_row_btn = QPushButton("Packet " + str(i))
-            self.pcap_row_buttons.append(QPushButton("Packet " + str(i+1)))
-            pcap_rows.addWidget(self.pcap_row_buttons[i])
+            packet_btn = QPushButton("Packet " + str(i+1))
+            # self.pcap_row_buttons.append(QPushButton("Packet " + str(i+1)))
+            pcap_rows.addWidget(packet_btn)
+            packet_btn.clicked.connect(lambda: self.packet_btn_clicked())
             print(i)
         print("Label generation completed")
         pcap_rows_widget.setLayout(pcap_rows)
         print("Setting scroll_area")
         return pcap_rows_widget
+        # pcap_rows_widget = QWidget()
+        # pcap_rows = QVBoxLayout()
+        # pcap_len = len(pcap_list)
+        # for i in range(pcap_len):
+        #     packet_btn = QPushButton("Packet " + str(i+1))
+        #     self.packet_button_dict[packet_btn] = (i+1, pcap_list[i+1])
+        #     pcap_rows.addWidget(packet_btn)
+        #     packet_btn.clicked.connect(lambda: self.packet_btn_clicked(self.packet_button_dict[packet_btn.text()]))
+        #     print(i)
+        # print("Label generation completed")
+        # pcap_rows_widget.setLayout(pcap_rows)
+        # print("Setting scroll_area")
+        # return pcap_rows_widget
 
     def clear_layout_view(self):
         # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
@@ -182,9 +199,14 @@ class MainWindow(QMainWindow):
         #     child.deleteLater()
         self.scroll_area.setWidget(QWidget())
         
-    def packet_btn_clicked(self, packet_num, packet_headers):
+    def packet_btn_clicked(self):
+        # packet_num = packet_dictionary_tuple[0]
+        # packet_headers = packet_dictionary_tuple[1]
+        sender = self.sender()
         self.eth_btn.show()
         self.udp_btn.show()
+        packet_num = sender.text().split()[-1]
+        packet_headers = self.pcap_dicts[int(packet_num)]
         print(packet_num, packet_headers)
         
     def get_Ethernet_headers(self, packet_info):
