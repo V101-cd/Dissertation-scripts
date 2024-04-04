@@ -28,19 +28,20 @@ class FrameWindow(QWidget):
     This "window" is a QWidget. If it has no parent, it
     will appear as a free-floating window as we want.
     """
-    def __init__(self, packet_name, binary_frame):
+    def __init__(self, packet_name):
         super().__init__()
         self.packet_name = packet_name
-        self.binary_frame = binary_frame
-
         self.setWindowTitle(self.packet_name)
-        
         self.layout = QVBoxLayout()
-        
-        self.layout.addWidget(QLabel("Binary"))
-        self.layout.addWidget(self.binary_frame)
+    
+    def add_frame(self, frame, frame_name):
+        self.layout.addWidget(QLabel(frame_name))
+        self.layout.addWidget(frame)
         self.setLayout(self.layout)
-        
+    
+    def add_verbose(self, message, verbose_type):
+        self.layout.addWidget(QLabel(verbose_type + ": " + message))
+        self.setLayout(self.layout)        
 
 class draw_frame():
     def __init__(self, num_cols, num_rows, headers=[], bits=True):
@@ -207,9 +208,35 @@ class MainWindow(QMainWindow):
         self.udp_btn.show()
         packet_num = sender.text().split()[-1]
         packet_headers = self.pcap_dicts[int(packet_num)]
+        print(packet_headers)
         packet_header_attributes = {}
+        self.header_window = FrameWindow("Packet " + str(packet_num))
         for key in packet_headers:
+            print(key)
             packet_header_attributes[key] = vars(packet_headers[key])
+            if key == "ethernet":
+                self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
+                print("visualised eth")
+            if key == "arp":
+                self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
+                print("visualised arp")
+            if key == "ip4":
+                self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
+                print("visualised ipv4")
+            if key == "ipv6":
+                self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
+                print("visualised ipv6")
+            if key == "tcp":
+                self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
+                print("visualised tcp")
+            if key == "udp":
+                self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
+                print("visualised udp")
+            if key == "icmp4":
+                self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
+                print("visualised icmpv4")
+
+        self.header_window.show()
         print(packet_num, packet_header_attributes)
         
     def get_Ethernet_headers(self, packet_info):
@@ -223,57 +250,30 @@ class MainWindow(QMainWindow):
 
     def activate_tab_3(self):
         self.stacklayout.setCurrentIndex(2)
-        
-    def show_ethernet_frame(self, packet_name, packet_info):
-        
-        cols = 5
-        rows = 1
-        ethernet_frame = draw_frame(cols,rows,["Destination\naddress", "Source\naddress", "Type", "Data", "CRC"], bits=False)    
-        bits = [6,6,2,len(packet_info[3]),4]
-        
-        binary_frame = copy.deepcopy(ethernet_frame)
-        
-        for i in range(cols):
-            binary_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
-        for i in range(rows+(cols-2)):
-            binary_frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
-       
-        self.w = FrameWindow(packet_name, binary_frame.frame)
-        self.w.resize(565,280)
-        self.w.show()
 
-    def show_udp_frame(self, packet_name, packet_info):
-             
-        cols = 5
+    def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
+        if row_headers == []:
+            row_headers = packet_info.keys()
+        row_headers = list(row_headers)
+        print
+        if "verbose" in packet_info.keys():
+            verbose_list.append(packet_info["verbose"])
+            print("verbose in keys")
+            cols = len(packet_info.keys()) - 1
+        else:
+            cols = len(packet_info.keys())
         rows = 1
-        # self.get_Ethernet_headers(packet_info)
-        udp_frame = draw_frame(cols,rows,["Source\nport", "Destination\nport", "UDP\nlength", "Checksum", "Data"], bits=True)    
-        bits = [16,16,16,16,len(packet_info[4])]
-        
-        binary_frame = copy.deepcopy(udp_frame)
-        # print("bin ", id(binary_frame.frame))
+        frame = draw_frame(cols, rows, row_headers, bits=bits_true)
         
         for i in range(cols):
-            binary_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
-        for i in range(rows+(cols-1)):
-            binary_frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
-        # binary_frame.frame.setItem(1,2,QTableWidgetItem(packet_info[2]))
-        # binary_frame.frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
-        # binary_frame.frame.setItem(1,4,QTableWidgetItem(str("")))
-
-        processed_frame = copy.deepcopy(udp_frame)
-        # print("proc ", id(processed_frame.frame))
-        for i in range(cols):
-            processed_frame.frame.setItem(0,i,QTableWidgetItem(str(bits[i])))
-        for i in range(rows+(cols-1)):
-            processed_frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[i])))
-        # processed_frame.frame.setItem(1,2,QTableWidgetItem(str("IPv4")))
-        # processed_frame.frame.setItem(1,3,QTableWidgetItem(str(packet_info[3])))
-        # processed_frame.frame.setItem(1,4,QTableWidgetItem(str("CRC missing")))
-       
-        self.w = FrameWindow(packet_name, binary_frame.frame)
-        self.w.resize(565,280)
-        self.w.show()
+            frame.frame.setItem(0,i,QTableWidgetItem(str(field_sizes[i])))
+            frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[list(packet_info.keys())[i]])))
+        self.header_window.add_frame(frame.frame, header_type)
+        if verbose_list != []:
+            for message in verbose_list:
+                self.header_window.add_verbose(message, header_type + " Verbose")
+                verbose_list.remove(message)
+        self.header_window.resize(565,280)
 
 app = QApplication(sys.argv)
 
