@@ -207,7 +207,10 @@ class MainWindow(QMainWindow):
         self.udp_btn.show()
         packet_num = sender.text().split()[-1]
         packet_headers = self.pcap_dicts[int(packet_num)]
-        print(packet_num, packet_headers)
+        packet_header_attributes = {}
+        for key in packet_headers:
+            packet_header_attributes[key] = vars(packet_headers[key])
+        print(packet_num, packet_header_attributes)
         
     def get_Ethernet_headers(self, packet_info):
         print(packet_info.split('('))

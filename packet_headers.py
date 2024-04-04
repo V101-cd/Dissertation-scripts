@@ -47,9 +47,9 @@ import subprocess		# for looking up source interface
 
 class ethheader:
     def __init__(self):
-        dstaddr = None
-        srcaddr = None
-        ethtype = None
+        self.dstaddr = None
+        self.srcaddr = None
+        self.ethtype = None
         
     @staticmethod
     def read(buf : bytes, bufstart):
@@ -145,7 +145,7 @@ class ip4header:
         protostr = 'UNKNOWN'
         if self.proto == UDP_PROTO: protostr = 'UDP'
         elif self.proto == TCP_PROTO: protostr = 'TCP'
-        return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
+        return 'srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
 
 class ip6header:
     def __init__(self):
@@ -343,6 +343,14 @@ class tcpheader:
         self.absseqnum= None	# absolute sequence number
         self.absacknum= None
         self.flags    = None
+        self.cwr      = None
+        self.ece      = None
+        self.urg      = None
+        self.ack      = None
+        self.psh      = None
+        self.rst      = None
+        self.syn      = None
+        self.fin      = None
         self.winsize  = None
         self.chksum   = None
         self.urgent   = None
@@ -363,7 +371,15 @@ class tcpheader:
         # absacknum in the following may be garbage
         (tcph.srcport, tcph.dstport, tcph.absseqnum, tcph.absacknum, flagword, tcph.winsize, tcph.chksum, tcph.urgent) = struct.unpack_from('!HHIIHHHH', buf, bufstart)
         tcph.tcphdrlen = (flagword >> 12)*4
-        tcph.flags = flagword & TCPFLAGMASK    
+        # tcph.flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
+        tcph.cwr = int(tcph.flags[0])
+        tcph.ece = int(tcph.flags[1])
+        tcph.urg = int(tcph.flags[2])
+        tcph.ack = int(tcph.flags[3])
+        tcph.psh = int(tcph.flags[4])
+        tcph.rst = int(tcph.flags[5])
+        tcph.syn = int(tcph.flags[6])
+        tcph.fin = int(tcph.flags[7])
         return tcph
         
     # needs srport, dstport, absseqnum, absacknum, flawgword, winsize
