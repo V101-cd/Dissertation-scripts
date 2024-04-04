@@ -371,7 +371,7 @@ class tcpheader:
         # absacknum in the following may be garbage
         (tcph.srcport, tcph.dstport, tcph.absseqnum, tcph.absacknum, flagword, tcph.winsize, tcph.chksum, tcph.urgent) = struct.unpack_from('!HHIIHHHH', buf, bufstart)
         tcph.tcphdrlen = (flagword >> 12)*4
-        # tcph.flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
+        tcph.flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
         tcph.cwr = int(tcph.flags[0])
         tcph.ece = int(tcph.flags[1])
         tcph.urg = int(tcph.flags[2])
