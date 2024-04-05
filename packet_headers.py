@@ -257,8 +257,8 @@ class icmp6header:
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
-        self.identifier     = None #Identifier, 16 bits
-        self.seqnum         = None #Sequence number, 8 bits
+        # self.identifier     = None #Identifier, 16 bits
+        # self.seqnum         = None #Sequence number, 8 bits
         self.verbose        = None
 
     @staticmethod

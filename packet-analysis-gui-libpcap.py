@@ -23,25 +23,23 @@ from PyQt6.QtWidgets import (
 import pylibpcap_follow_streams as parser
 # import pylibpcap_follow_streams as parser
 
-class FrameWindow(QWidget):
-    """
-    This "window" is a QWidget. If it has no parent, it
-    will appear as a free-floating window as we want.
-    """
+class FrameWindow(QScrollArea):
+
     def __init__(self, packet_name):
-        super().__init__()
+        super(FrameWindow,self).__init__()
         self.packet_name = packet_name
         self.setWindowTitle(self.packet_name)
-        self.layout = QVBoxLayout()
+        self.widget = QWidget()
+        self.layout = QVBoxLayout(self.widget)
+        self.setWidget(self.widget)
+        self.setWidgetResizable(True)
     
     def add_frame(self, frame, frame_name):
         self.layout.addWidget(QLabel(frame_name))
         self.layout.addWidget(frame)
-        self.setLayout(self.layout)
     
     def add_verbose(self, message, verbose_type):
         self.layout.addWidget(QLabel(verbose_type + ": " + message))
-        self.setLayout(self.layout)        
 
 class draw_frame():
     def __init__(self, num_cols, num_rows, headers=[], bits=True):
@@ -56,28 +54,15 @@ class draw_frame():
             self.datatype = "Bytes"
         
         self.frame = QTableWidget(self.num_rows, self.num_cols)
-        self.frame.setWordWrap(True)
+        # self.frame.setWordWrap(True)
         self.frame.setHorizontalHeaderLabels(self.headers)
         self.frame.setVerticalHeaderLabels([self.datatype, ""])
+        self.frame.adjustSize()
         
         ##TODO: make the cells uneditable; make the cell sizes dynamic based on size of window etc.
         # self.frame.wordWrap()
         # self.frame.resizeColumnsToContents()
         # self.frame.resizeRowsToContents()
-    def __deepcopy__(self, memodict={}):
-        new_frame = draw_frame(self.num_cols, self.num_rows, self.headers, self.bits)
-        new_frame.__dict__.update(self.__dict__)
-        new_frame.num_cols = copy.deepcopy(self.num_cols, memodict)
-        new_frame.num_rows = copy.deepcopy(self.num_rows, memodict)
-        new_frame.headers = copy.deepcopy(self.headers, memodict)
-        new_frame.bits = copy.deepcopy(self.bits, memodict)
-        new_frame.datatype = copy.deepcopy(self.datatype, memodict)
-        new_frame.frame = QTableWidget(new_frame.num_rows, new_frame.num_cols)
-        new_frame.frame.setWordWrap(True)
-        new_frame.frame.setHorizontalHeaderLabels(new_frame.headers)
-        new_frame.frame.setVerticalHeaderLabels([new_frame.datatype, ""])
-        return new_frame
-     
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -223,7 +208,7 @@ class MainWindow(QMainWindow):
             if key == "ip4":
                 self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
-            if key == "ipv6":
+            if key == "ip6":
                 self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
                 print("visualised ipv6")
             if key == "tcp":
@@ -235,6 +220,9 @@ class MainWindow(QMainWindow):
             if key == "icmp4":
                 self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
                 print("visualised icmpv4")
+            if key == "icmp6":
+                self.visualise_header(packet_header_attributes[key], "ICMPv6", [8,8,16], True, packet_header_attributes[key].keys())
+                print("visualised icmpv6")
 
         self.header_window.show()
         print(packet_num, packet_header_attributes)
