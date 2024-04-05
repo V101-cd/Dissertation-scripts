@@ -1,6 +1,6 @@
 import sys
 import copy
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -35,6 +35,7 @@ class FrameWindow(QScrollArea):
         self.layout = QVBoxLayout(self.widget)
         self.setWidget(self.widget)
         self.setWidgetResizable(True)
+        # self.setFixedSize(700,500)
     
     def add_frame(self, frame, frame_name):
         self.layout.addWidget(QLabel(frame_name))
@@ -46,6 +47,7 @@ class FrameWindow(QScrollArea):
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
         self.layout.addWidget(diagram_label)
+        # self.layout.addLayout(diagram_label)
 
 class draw_frame():
     def __init__(self, num_cols, num_rows, headers=[], bits=True):
@@ -71,15 +73,33 @@ class draw_frame():
         # self.frame.resizeRowsToContents()
 
 class header_diagram():
-    def __init__(self, diagram_location):
+    def __init__(self, diagram_location, header_type, field_values):
         super().__init__()
-
+        # self.layout = QHBoxLayout()
         self.diagram = QPixmap(diagram_location)
         self.diagram_label = QLabel()
+        self.diagram_label.setFixedSize(550,300)
+        self.diagram_label.setScaledContents(True)
+        print("Scaled contents? ", self.diagram_label.hasScaledContents())
         self.diagram_label.setPixmap(self.diagram)
+        # self.layout.addWidget(self.diagram_label)
+
+        if header_type == "ethernet":
+            self.dst_addr_label = QLabel(field_values["dstaddr"])
+            self.dst_addr_label.setParent(self.diagram_label)
+            # self.dst_addr_label.setGeometry(275,100,35,15)
+            self.dst_addr_label.move(QPoint(140,125))
+            # self.layout.addWidget(self.dst_addr_label)
+            
     
     def get_diagram_label(self):
         return self.diagram_label
+        # return self.layout
+    
+    # def resizeEvent(self, event):
+    #     scaled_diagram = self.diagram.scaled(self.width(), self.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    #     self.diagram_label.setPixmap(scaled_diagram)
+    #     self.update()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -218,7 +238,7 @@ class MainWindow(QMainWindow):
             packet_header_attributes[key] = vars(packet_headers[key])
             if key == "ethernet":
                 # self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
-                self.view_header_diagram(key)
+                self.view_header_diagram(key, packet_header_attributes[key])
                 print("visualised eth")
             if key == "arp":
                 self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
@@ -257,9 +277,9 @@ class MainWindow(QMainWindow):
     def activate_tab_3(self):
         self.stacklayout.setCurrentIndex(2)
 
-    def view_header_diagram(self, header_type):
+    def view_header_diagram(self, header_type, field_values):
         if header_type == "ethernet":
-            diagram_label = header_diagram("./eth-frame-header.png").get_diagram_label()
+            diagram_label = header_diagram("./eth-frame-header.png", header_type, field_values).get_diagram_label()
             self.header_window.add_diagram_label(diagram_label, "Ethernet")
 
     def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
