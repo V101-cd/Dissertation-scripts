@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QScrollArea,
+    QSizePolicy,
     QStackedLayout,
     QToolButton,
     QVBoxLayout,
@@ -20,6 +21,7 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
 )
+from PyQt6.QtGui import QPixmap
 import pylibpcap_follow_streams as parser
 # import pylibpcap_follow_streams as parser
 
@@ -40,6 +42,10 @@ class FrameWindow(QScrollArea):
     
     def add_verbose(self, message, verbose_type):
         self.layout.addWidget(QLabel(verbose_type + ": " + message))
+
+    def add_diagram_label(self, diagram_label, header_name):
+        self.layout.addWidget(QLabel(header_name))
+        self.layout.addWidget(diagram_label)
 
 class draw_frame():
     def __init__(self, num_cols, num_rows, headers=[], bits=True):
@@ -63,6 +69,17 @@ class draw_frame():
         # self.frame.wordWrap()
         # self.frame.resizeColumnsToContents()
         # self.frame.resizeRowsToContents()
+
+class header_diagram():
+    def __init__(self, diagram_location):
+        super().__init__()
+
+        self.diagram = QPixmap(diagram_location)
+        self.diagram_label = QLabel()
+        self.diagram_label.setPixmap(self.diagram)
+    
+    def get_diagram_label(self):
+        return self.diagram_label
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -94,21 +111,21 @@ class MainWindow(QMainWindow):
         self.scroll_area.setWidgetResizable(True)
         pagelayout.addWidget(self.scroll_area)
         
-        packet_info = ['fc:44:82:39:bc:1e', 'dc:a6:32:66:cd:5a', '0x800', b'E\x00\x009\xe4\x1b@\x00\x80\x11\xa4\xe5\xc0\xa8\x04\x05\xd8:\xd4\xca\xc2&\x01\xbb\x00%\xfe@@\xe9h\xef\xf7\xd3\xe4~>\xd9F\xf3\xa7v\x97U\xf0^E\x1e\xc1\x8f\xc7\x96\xd0\xe3\x08\x82\xe9'] ##dpkt identifies this length as 57 bytes (well, 57 something)
-        udp_packet_info = [56375, 443, 42, 61632, b"]\xfac\xc5\ns\xbb\xee-\x18\xea\x07\xab\xec\xc8\xdb\xaf\xea\x8bv\xd55?\xec\x1f\x13\x99\xa6Q'\xd0\xe7\xe9\xf9"]
+        # packet_info = ['fc:44:82:39:bc:1e', 'dc:a6:32:66:cd:5a', '0x800', b'E\x00\x009\xe4\x1b@\x00\x80\x11\xa4\xe5\xc0\xa8\x04\x05\xd8:\xd4\xca\xc2&\x01\xbb\x00%\xfe@@\xe9h\xef\xf7\xd3\xe4~>\xd9F\xf3\xa7v\x97U\xf0^E\x1e\xc1\x8f\xc7\x96\xd0\xe3\x08\x82\xe9'] ##dpkt identifies this length as 57 bytes (well, 57 something)
+        # udp_packet_info = [56375, 443, 42, 61632, b"]\xfac\xc5\ns\xbb\xee-\x18\xea\x07\xab\xec\xc8\xdb\xaf\xea\x8bv\xd55?\xec\x1f\x13\x99\xa6Q'\xd0\xe7\xe9\xf9"]
         # packet_info = "<bound method Ethernet.__bytes__ of Ethernet(dst=b'\xfcD\x829\xbc\x1e', src=b'\xdc\xa62f\xcdZ', data=IP(tos=128, len=53, df=1, ttl=57, p=17, sum=14722, src=b'\x8e\xfa\xb4\x0e', dst=b'\xc0\xa8\x04\x05', opts=b'', data=UDP(sport=443, dport=51865, ulen=33, sum=47964, data=b'ZU\x1e\xa5\x9b\xfa\x84m\xcb\xb41]\xf8\xde\xdd\xdb\xd2\x8f\xda(`\r\x0fN\xe7')))>"
-        self.eth_btn = QPushButton("Ethernet")
-        self.eth_btn.hide()
-        self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
-        packet_layer_button_layout.addWidget(self.eth_btn)
+        # self.eth_btn = QPushButton("Ethernet")
+        # self.eth_btn.hide()
+        # self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
+        # packet_layer_button_layout.addWidget(self.eth_btn)
         # label_ethernet = QLabel()
         # label_ethernet.setStyleSheet('QLabel{background-color:purple}')
         # self.stacklayout.addWidget(label_ethernet)
         
-        self.udp_btn = QPushButton("UDP")
-        self.udp_btn.hide()
-        self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
-        packet_layer_button_layout.addWidget(self.udp_btn)
+        # self.udp_btn = QPushButton("UDP")
+        # self.udp_btn.hide()
+        # self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
+        # packet_layer_button_layout.addWidget(self.udp_btn)
 
         # if packet_button in self.pcap_row_buttons .connect(lambda: self.packet_btn_clicked(i, pcap_list[i]))
 
@@ -189,8 +206,8 @@ class MainWindow(QMainWindow):
         # packet_num = packet_dictionary_tuple[0]
         # packet_headers = packet_dictionary_tuple[1]
         sender = self.sender()
-        self.eth_btn.show()
-        self.udp_btn.show()
+        # self.eth_btn.show()
+        # self.udp_btn.show()
         packet_num = sender.text().split()[-1]
         packet_headers = self.pcap_dicts[int(packet_num)]
         print(packet_headers)
@@ -200,7 +217,8 @@ class MainWindow(QMainWindow):
             print(key)
             packet_header_attributes[key] = vars(packet_headers[key])
             if key == "ethernet":
-                self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
+                # self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
+                self.view_header_diagram(key)
                 print("visualised eth")
             if key == "arp":
                 self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
@@ -238,6 +256,11 @@ class MainWindow(QMainWindow):
 
     def activate_tab_3(self):
         self.stacklayout.setCurrentIndex(2)
+
+    def view_header_diagram(self, header_type):
+        if header_type == "ethernet":
+            diagram_label = header_diagram("./eth-frame-header.png").get_diagram_label()
+            self.header_window.add_diagram_label(diagram_label, "Ethernet")
 
     def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
         if row_headers == []:
