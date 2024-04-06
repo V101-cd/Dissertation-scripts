@@ -21,21 +21,24 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
 )
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPainter, QPixmap, QResizeEvent
 import pylibpcap_follow_streams as parser
 # import pylibpcap_follow_streams as parser
 
 class FrameWindow(QScrollArea):
 
     def __init__(self, packet_name):
-        super(FrameWindow,self).__init__()
+        # super(FrameWindow,self).__init__()
+        super().__init__()
         self.packet_name = packet_name
         self.setWindowTitle(self.packet_name)
         self.widget = QWidget()
         self.layout = QVBoxLayout(self.widget)
         self.setWidget(self.widget)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFixedSize(810,400)
         self.setWidgetResizable(True)
-        # self.setFixedSize(700,500)
+
     
     def add_frame(self, frame, frame_name):
         self.layout.addWidget(QLabel(frame_name))
@@ -47,7 +50,9 @@ class FrameWindow(QScrollArea):
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
         self.layout.addWidget(diagram_label)
-        # self.layout.addLayout(diagram_label)
+
+    def add_verbose_label(self, message):
+        self.layout.addWidget(QLabel(message))
 
 class draw_frame():
     def __init__(self, num_cols, num_rows, headers=[], bits=True):
@@ -75,26 +80,33 @@ class draw_frame():
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values):
         super().__init__()
-        # self.layout = QHBoxLayout()
+        self.field_values = field_values
         self.diagram = QPixmap(diagram_location)
         self.diagram_label = QLabel()
-        self.diagram_label.setFixedSize(550,300)
+        self.diagram_label.setFixedSize(775,275)
         self.diagram_label.setScaledContents(True)
-        print("Scaled contents? ", self.diagram_label.hasScaledContents())
         self.diagram_label.setPixmap(self.diagram)
-        # self.layout.addWidget(self.diagram_label)
 
         if header_type == "ethernet":
-            self.dst_addr_label = QLabel(field_values["dstaddr"])
+            self.dst_addr_label = QLabel(str(self.field_values["dstaddr"]))
             self.dst_addr_label.setParent(self.diagram_label)
-            # self.dst_addr_label.setGeometry(275,100,35,15)
-            self.dst_addr_label.move(QPoint(140,125))
-            # self.layout.addWidget(self.dst_addr_label)
+            self.dst_addr_label.move(QPoint(225,105))
+
+            self.src_addr_label = QLabel(str(self.field_values["srcaddr"]))
+            self.src_addr_label.setParent(self.diagram_label)
+            self.src_addr_label.move(QPoint(540,145))
+
+            self.ethtype_label = QLabel(str(self.field_values["ethtype"]))
+            self.ethtype_label.setParent(self.diagram_label)
+            self.ethtype_label.move(QPoint(165,220))
             
-    
     def get_diagram_label(self):
         return self.diagram_label
-        # return self.layout
+    
+    def get_verbose_label(self):
+        if self.field_values["verbose"] != None:
+            return self.field_values["verbose"]
+        return None
     
     # def resizeEvent(self, event):
     #     scaled_diagram = self.diagram.scaled(self.width(), self.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -279,8 +291,11 @@ class MainWindow(QMainWindow):
 
     def view_header_diagram(self, header_type, field_values):
         if header_type == "ethernet":
-            diagram_label = header_diagram("./eth-frame-header.png", header_type, field_values).get_diagram_label()
-            self.header_window.add_diagram_label(diagram_label, "Ethernet")
+            diagram = header_diagram("./eth-frame-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "Ethernet")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
 
     def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
         if row_headers == []:

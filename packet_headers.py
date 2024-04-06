@@ -50,6 +50,7 @@ class ethheader:
         self.dstaddr = None
         self.srcaddr = None
         self.ethtype = None
+        self.verbose = None
         
     @staticmethod
     def read(buf : bytes, bufstart):
@@ -59,10 +60,25 @@ class ethheader:
         ehdr.srcaddr = ':'.join(ehdr.srcaddr[i:i+2] for i in range (0, len(ehdr.srcaddr), 2))
         ehdr.dstaddr = bytearray(ehdr.dstaddr).hex()
         ehdr.dstaddr = ':'.join(ehdr.dstaddr[i:i+2] for i in range (0, len(ehdr.dstaddr), 2))
+        ehdr.ethtype = hex(ehdr.ethtype)
+        ehdr.verbose = ehdr.get_verbose()
         return ehdr
         
     def write(self, buf : bytearray, bufstart):
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
+
+    def get_verbose(self):
+        match self.ethtype:
+            case '0x800':
+                return "Ethernet type: Internet Protocol Version 4 (IPv4)"
+            case '0x806':
+                return "Ethernet type: Address Resolution Protocol (ARP)"
+            case '0x8035':
+                return "Ethernet type: Reverse Address Resolution Protocol (RARP)"
+            case '0x86DD':
+                return "Ethernet type: Internet Protocol Version 6 (IPv6)"
+            case other:
+                return None
 
 class arpheader:
     def __init__(self):
