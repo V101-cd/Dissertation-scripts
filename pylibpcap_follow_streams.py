@@ -36,7 +36,7 @@ class packet:
             self.eth_key = (self.ethh.dstaddr, self.ethh.srcaddr, self.ethh.ethtype)
 
         match self.ethh.ethtype:
-            case 0x0806: #ARP_PROTO
+            case '0x806': #ARP_PROTO
                 self.arph = self.get_header(self.packet_buff, ETHHDRLEN, arpheader)
                 if self.arph != None:
                     match self.arph.proto_type:
@@ -51,7 +51,7 @@ class packet:
                             dstip = '-'
                     self.protocols["arp"] = self.arph
                     self.arp_key = (self.arph.srcmac, srcip, self.arph.dstmac, dstip, self.arph.opcode)
-            case 0x0800:
+            case '0x800':
                 self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header) #self.get_ip4_header(self.packet_buff, ETHHDRLEN)
                 if self.ip4h != None:
                     self.protocols["ip4"] = self.ip4h
@@ -74,7 +74,7 @@ class packet:
                             if self.udph != None:
                                 self.protocols["udp"] = self.udph
                                 self.udp_key = (self.udph.srcport, self.udph.dstport)     
-            case 0x86DD:
+            case '0x86DD':
                 self.ip6h = self.get_header(self.packet_buff, ETHHDRLEN, ip6header)
                 if self.ip6h != None:
                     self.protocols["ip6"] =  self.ip6h

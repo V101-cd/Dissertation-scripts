@@ -253,9 +253,11 @@ class MainWindow(QMainWindow):
                 self.view_header_diagram(key, packet_header_attributes[key])
                 print("visualised eth")
             if key == "arp":
+                print("Key = ARP")
                 self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
                 print("visualised arp")
             if key == "ip4":
+                print("Key = IPv4")
                 self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
