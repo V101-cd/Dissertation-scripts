@@ -52,7 +52,7 @@ class packet:
                     self.protocols["arp"] = self.arph
                     self.arp_key = (self.arph.srcmac, srcip, self.arph.dstmac, dstip, self.arph.opcode)
             case '0x800':
-                self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header) #self.get_ip4_header(self.packet_buff, ETHHDRLEN)
+                self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header)
                 if self.ip4h != None:
                     self.protocols["ip4"] = self.ip4h
                     srcip = socket.inet_ntoa(self.ip4h.srcaddrb)

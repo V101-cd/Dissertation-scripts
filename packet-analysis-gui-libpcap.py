@@ -83,11 +83,11 @@ class header_diagram():
         self.field_values = field_values
         self.diagram = QPixmap(diagram_location)
         self.diagram_label = QLabel()
-        self.diagram_label.setFixedSize(775,275)
         self.diagram_label.setScaledContents(True)
         self.diagram_label.setPixmap(self.diagram)
 
         if header_type == "ethernet":
+            self.diagram_label.setFixedSize(775,275)
             self.dst_addr_label = QLabel(str(self.field_values["dstaddr"]))
             self.dst_addr_label.setParent(self.diagram_label)
             self.dst_addr_label.move(QPoint(225,105))
@@ -99,6 +99,44 @@ class header_diagram():
             self.ethtype_label = QLabel(str(self.field_values["ethtype"]))
             self.ethtype_label.setParent(self.diagram_label)
             self.ethtype_label.move(QPoint(165,220))
+        
+        if header_type == "arp":
+            self.diagram_label.setFixedSize(775,330)
+            self.hardware_type_label = QLabel(str(self.field_values["hw_type"]))
+            self.hardware_type_label.setParent(self.diagram_label)
+            self.hardware_type_label.move(QPoint(190,70))
+
+            self.protocol_type_label = QLabel(str(self.field_values["proto_type"]))
+            self.protocol_type_label.setParent(self.diagram_label)
+            self.protocol_type_label.move(QPoint(525,70))
+
+            self.hardware_size_label = QLabel(str(self.field_values["hw_size"]))
+            self.hardware_size_label.setParent(self.diagram_label)
+            self.hardware_size_label.move(QPoint(190,107))
+
+            self.protocol_size_label = QLabel(str(self.field_values["proto_size"]))
+            self.protocol_size_label.setParent(self.diagram_label)
+            self.protocol_size_label.move(QPoint(355,107))
+
+            self.opcode_label = QLabel(str(self.field_values["opcode"]))
+            self.opcode_label.setParent(self.diagram_label)
+            self.opcode_label.move(QPoint(525,107))
+
+            self.src_mac_label = QLabel(str(self.field_values["srcmac"]))
+            self.src_mac_label.setParent(self.diagram_label)
+            self.src_mac_label.move(QPoint(230,150))
+
+            self.src_ip_label = QLabel(str(self.field_values["proto_src_addrb"]))
+            self.src_ip_label.setParent(self.diagram_label)
+            self.src_ip_label.move(QPoint(545,190))
+
+            self.dst_mac_label = QLabel(str(self.field_values["dstmac"]))
+            self.dst_mac_label.setParent(self.diagram_label)
+            self.dst_mac_label.move(QPoint(586,225))
+
+            self.dst_ip_label = QLabel(str(self.field_values["proto_dst_addrb"]))
+            self.dst_ip_label.setParent(self.diagram_label)
+            self.dst_ip_label.move(QPoint(230,300))
             
     def get_diagram_label(self):
         return self.diagram_label
@@ -253,11 +291,10 @@ class MainWindow(QMainWindow):
                 self.view_header_diagram(key, packet_header_attributes[key])
                 print("visualised eth")
             if key == "arp":
-                print("Key = ARP")
-                self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
                 print("visualised arp")
             if key == "ip4":
-                print("Key = IPv4")
                 self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
@@ -295,6 +332,12 @@ class MainWindow(QMainWindow):
         if header_type == "ethernet":
             diagram = header_diagram("./eth-frame-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "Ethernet")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "arp":
+            diagram = header_diagram("./arp-frame-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "ARP")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)

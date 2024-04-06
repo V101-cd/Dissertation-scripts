@@ -82,25 +82,71 @@ class ethheader:
 
 class arpheader:
     def __init__(self):
-        self.proto_type = None
-        self.opcode = None
-        self.srcmac = None
+        self.hw_type         = None
+        self.proto_type      = None
+        self.hw_size         = None
+        self.proto_size      = None
+        self.opcode          = None
+        self.srcmac          = None
         self.proto_src_addrb = None
-        self.dstmac = None
+        self.dstmac          = None
         self.proto_dst_addrb = None
-        self.isgratuituous = False
+        self.verbose         = None
     
     @staticmethod
     def read(buf: bytes, bufstart):
         arphdr = arpheader()
-        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        (arphdr.hw_type, arphdr.proto_type, arphdr.hw_size, arphdr.proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        # arphdr.hw_type = int.from_bytes(arphdr.hw_type, "big")
+        arphdr.proto_type = hex(arphdr.proto_type)
+        arphdr.hw_size = int.from_bytes(arphdr.hw_size, "big")
+        arphdr.proto_size = int.from_bytes(arphdr.proto_size, "big")
+        # arphdr.opcode = int.from_bytes(arphdr.opcode, "big")
         arphdr.srcmac = bytearray(arphdr.srcmac).hex()
         arphdr.srcmac = ':'.join(arphdr.srcmac[i:i+2] for i in range (0, len(arphdr.srcmac), 2))
         arphdr.dstmac = bytearray(arphdr.dstmac).hex()
         arphdr.dstmac = ':'.join(arphdr.dstmac[i:i+2] for i in range (0, len(arphdr.dstmac), 2))
+        arphdr.verbose = arphdr.get_verbose()
         if arphdr.dstmac == 'ff:ff:ff:ff:ff:ff':
-            arphdr.isgratuituous = True
+            arphdr.verbose += "Gratuitous ARP"
         return arphdr
+    
+    def get_verbose(self):
+        self.verbose = ""
+        match self.hw_type:
+            case 1:
+                self.verbose += "Hardware type: Ethernet (10Mb)\n"
+            case 2:
+                self.verbose += "Hardware type: Experimental Ethernet (3Mb)\n"
+            case 18:
+                self.verbose += "Hardware type: Fibre Channel\n"
+            case 20:
+                self.verbose += "Hardware type: Serial Line\n"
+            case 31:
+                self.verbose += "Hardware type: IPSec tunnel\n"
+        match self.proto_type:
+            case '0x800':
+                self.verbose += "Protocol type: Internet Protocol Version 4 (IPv4)\n"
+                self.proto_src_addrb = realsocket.inet_ntoa(struct.pack('!L', self.proto_src_addrb))
+                self.proto_dst_addrb = realsocket.inet_ntoa(struct.pack('!L', self.proto_dst_addrb))
+            case '0x806':
+                self.verbose += "Protocol type: Address Resolution Protocol (ARP)\n"
+            case '0x8035':
+                self.verbose += "Protocol type: Reverse Address Resolution Protocol (RARP)\n"
+            case '0x86DD':
+                self.verbose += "Protocol type: Internet Protocol Version 6 (IPv6)\n"
+                self.proto_src_addrb = realsocket.inet_ntop(realsocket.AF_INET6, (struct.pack('!L', self.proto_src_addrb)))
+                self.proto_dst_addrb = realsocket.inet_ntop(realsocket.AF_INET6, (struct.pack('!L', self.proto_dst_addrb)))
+        match self.opcode:
+            case 1:
+                self.verbose += "Opcode: ARP Request\n"
+            case 2:
+                self.verbose += "Opcode: ARP Reply\n"
+            case 3:
+                self.verbose += "Opcode: Reverse ARP Request\n"
+            case 4:
+                self.verbose += "Opcode: Reverse ARP Reply\n"
+        return self.verbose
             
 DONTFRAG  = 0x2
 MOREFRAGS = 0x1
