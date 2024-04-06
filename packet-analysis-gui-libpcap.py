@@ -138,63 +138,63 @@ class header_diagram():
             self.dst_ip_label.setParent(self.diagram_label)
             self.dst_ip_label.move(QPoint(235,290))
         
-        if header_type == "ipv4":
+        if header_type == "ip4":
             self.diagram_label.setFixedSize(775,350)
             self.version_label = QLabel("4")
             self.version_label.setParent(self.diagram_label)
-            self.version_label.move(QPoint(106,83))
+            self.version_label.move(QPoint(106,80))
 
             self.header_length_label = QLabel(str(self.field_values["iphdrlen"]))
             self.header_length_label.setParent(self.diagram_label)
-            self.header_length_label.move(QPoint(190,83))
+            self.header_length_label.move(QPoint(190,80))
 
             self.diff_serv_label = QLabel(str(self.field_values["dsfield"]))
             self.diff_serv_label.setParent(self.diagram_label)
-            self.diff_serv_label.move(QPoint(315,83))
+            self.diff_serv_label.move(QPoint(315,80))
 
             self.length_label = QLabel(str(self.field_values["length"]))
             self.length_label.setParent(self.diagram_label)
-            self.length_label.move(QPoint(514,74))
+            self.length_label.move(QPoint(514,69))
 
             self.ident_label = QLabel(str(self.field_values["ident"]))
             self.ident_label.setParent(self.diagram_label)
-            self.ident_label.move(QPoint(178,113))
+            self.ident_label.move(QPoint(178,108))
 
             self.reserved_label = QLabel(str(self.field_values["reserved"]))
             self.reserved_label.setParent(self.diagram_label)
-            self.reserved_label.move(QPoint(410,123))
+            self.reserved_label.move(QPoint(408,120))
 
             self.df_label = QLabel(str(self.field_values["df"]))
             self.df_label.setParent(self.diagram_label)
-            self.df_label.move(QPoint(430,123))
+            self.df_label.move(QPoint(429,120))
 
             self.mf_label = QLabel(str(self.field_values["mf"]))
             self.mf_label.setParent(self.diagram_label)
-            self.mf_label.move(QPoint(450,123))
+            self.mf_label.move(QPoint(449,120))
 
             self.frag_offset_label = QLabel(str(self.field_values["fragoffset"]))
             self.frag_offset_label.setParent(self.diagram_label)
-            self.frag_offset_label.move(QPoint(590,113))
+            self.frag_offset_label.move(QPoint(590,108))
 
             self.ttl_label = QLabel(str(self.field_values["ttl"]))
             self.ttl_label.setParent(self.diagram_label)
-            self.ttl_label.move(QPoint(178,152))
+            self.ttl_label.move(QPoint(178,147))
 
             self.protocol_label = QLabel(str(self.field_values["proto"]))
             self.protocol_label.setParent(self.diagram_label)
-            self.protocol__label.move(QPoint(318,152))
+            self.protocol_label.move(QPoint(318,147))
 
             self.checksum_label = QLabel(str(self.field_values["chksum"]))
             self.checksum_label.setParent(self.diagram_label)
-            self.checksum_label.move(QPoint(505,152))
+            self.checksum_label.move(QPoint(505,147))
             
             self.src_ip_label = QLabel(str(self.field_values["srcaddrb"]))
             self.src_ip_label.setParent(self.diagram_label)
-            self.src_ip_label.move(QPoint(231,190))
+            self.src_ip_label.move(QPoint(231,186))
 
             self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
-            self.dst_ip_label.move(QPoint(231,230))
+            self.dst_ip_label.move(QPoint(231,226))
             
     def get_diagram_label(self):
         return self.diagram_label
