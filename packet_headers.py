@@ -47,9 +47,10 @@ import subprocess		# for looking up source interface
 
 class ethheader:
     def __init__(self):
-        dstaddr = None
-        srcaddr = None
-        ethtype = None
+        self.dstaddr = None
+        self.srcaddr = None
+        self.ethtype = None
+        self.verbose = None
         
     @staticmethod
     def read(buf : bytes, bufstart):
@@ -59,10 +60,25 @@ class ethheader:
         ehdr.srcaddr = ':'.join(ehdr.srcaddr[i:i+2] for i in range (0, len(ehdr.srcaddr), 2))
         ehdr.dstaddr = bytearray(ehdr.dstaddr).hex()
         ehdr.dstaddr = ':'.join(ehdr.dstaddr[i:i+2] for i in range (0, len(ehdr.dstaddr), 2))
+        ehdr.ethtype = hex(ehdr.ethtype)
+        ehdr.verbose = ehdr.get_verbose()
         return ehdr
         
     def write(self, buf : bytearray, bufstart):
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
+
+    def get_verbose(self):
+        match self.ethtype:
+            case '0x800':
+                return "Ethernet type: Internet Protocol Version 4 (IPv4)"
+            case '0x806':
+                return "Ethernet type: Address Resolution Protocol (ARP)"
+            case '0x8035':
+                return "Ethernet type: Reverse Address Resolution Protocol (RARP)"
+            case '0x86DD':
+                return "Ethernet type: Internet Protocol Version 6 (IPv6)"
+            case other:
+                return None
 
 class arpheader:
     def __init__(self):
@@ -145,7 +161,7 @@ class ip4header:
         protostr = 'UNKNOWN'
         if self.proto == UDP_PROTO: protostr = 'UDP'
         elif self.proto == TCP_PROTO: protostr = 'TCP'
-        return '[srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
+        return 'srcIP={}, dstIP={}, proto={}'.format(realsocket.inet_ntoa(self.srcaddrb), realsocket.inet_ntoa(self.dstaddrb), protostr)
 
 class ip6header:
     def __init__(self):
@@ -198,6 +214,7 @@ class icmp4header:
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
+        self.various        = None #various uses, 32 bits
         self.verbose        = None
         # self.ip4header      = None #IPv4 header
         # self.datagrambytes  = None #first 64 bits of the datagram
@@ -216,6 +233,7 @@ class icmp4header:
         counter += (8//4)
         icmph.checksum = (hexbuf[counter: counter + (16//4)])
         counter += (16//4)
+        icmph.various = "Unknown"
         # print(icmph.type, icmph.code, icmph.checksum)
         match icmph.type:
             case 0:
@@ -255,8 +273,8 @@ class icmp6header:
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
-        self.identifier     = None #Identifier, 16 bits
-        self.seqnum         = None #Sequence number, 8 bits
+        # self.identifier     = None #Identifier, 16 bits
+        # self.seqnum         = None #Sequence number, 8 bits
         self.verbose        = None
 
     @staticmethod
@@ -308,7 +326,6 @@ class icmp6header:
 
 class udpheader:
     def __init__(self):
-        self.udphdrlen = None
         self.srcport = None
         self.dstport = None
         self.length  = None
@@ -318,7 +335,7 @@ class udpheader:
     @staticmethod
     def read(buf, bufstart, iphdr=None):
         udph = udpheader()
-        (udph.srcport, udph.dstport,udph.length, udph.chksum) = struct.unpack_from('>HHHH', buf, bufstart)
+        (udph.srcport, udph.dstport, udph.length, udph.chksum) = struct.unpack_from('>HHHH', buf, bufstart)
         if VERIFY_CHECKSUMS and udph.chksum != 0:
             if not iphdr: 
                 eprint('call to udpheader.read() needs iphdr')
@@ -332,17 +349,23 @@ class udpheader:
     # Does NOT do the checksum, because we don't really know the ip header source address
     def write_nochk(self, buf : bytearray, bufstart):
         struct.pack_into('!HHHH', buf, bufstart, self.srcport, self.dstport, self.length, 0)
-        # checksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, iphdr.length)
-        # struct.pack_into('!H', buf, bufstart+ 6, 0xFFFF - checksum)		# checksum has offset 6
     
 class tcpheader:  
     def __init__(self):
-        self.tcphdrlen= None
         self.srcport  = None
         self.dstport  = None
         self.absseqnum= None	# absolute sequence number
         self.absacknum= None
-        self.flags    = None
+        self.tcphdrlen= None
+        self.reserved = None
+        self.cwr      = None
+        self.ece      = None
+        self.urg      = None
+        self.ack      = None
+        self.psh      = None
+        self.rst      = None
+        self.syn      = None
+        self.fin      = None
         self.winsize  = None
         self.chksum   = None
         self.urgent   = None
@@ -363,10 +386,19 @@ class tcpheader:
         # absacknum in the following may be garbage
         (tcph.srcport, tcph.dstport, tcph.absseqnum, tcph.absacknum, flagword, tcph.winsize, tcph.chksum, tcph.urgent) = struct.unpack_from('!HHIIHHHH', buf, bufstart)
         tcph.tcphdrlen = (flagword >> 12)*4
-        tcph.flags = flagword & TCPFLAGMASK    
+        flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
+        tcph.cwr = int(flags[0])
+        tcph.ece = int(flags[1])
+        tcph.urg = int(flags[2])
+        tcph.ack = int(flags[3])
+        tcph.psh = int(flags[4])
+        tcph.rst = int(flags[5])
+        tcph.syn = int(flags[6])
+        tcph.fin = int(flags[7])
+        tcph.reserved = (bin(0)[2:]).zfill(4) ##set to 0; can't be used because software would likely drop segments with tcph.reserved != 0 as an error
         return tcph
         
-    # needs srport, dstport, absseqnum, absacknum, flawgword, winsize
+    # needs srport, dstport, absseqnum, absacknum, flagword, winsize
     def write(self, buf : bytearray, bufstart, iphdr: ip4header):
         flagword = (self.tcphdrlen  << 10) & self.flags  	# Note tcphsize is already multiplied by 4, so shift is 10
         struct.pack_into('!HHIIHHHH', buf, bufstart, self.srcport, self.dstport, self.absseqnum, self.absacknum,
@@ -375,7 +407,7 @@ class tcpheader:
         struct.pack_into('!H', buf, bufstart+ 6, 0xFFFF - checksum)		# checksum has offset 6
             
     def __str__(self):
-        return '[srcport={}, dstport={}, seqnum={}, acknum={}, flags={}, winsize={}'.format(self.srcport, self.dstport, self.absseqnum, self.absacknum, self.flags, self.winsize)
+        return 'srcport={}, dstport={}, seqnum={}, acknum={}, flags={}, winsize={}'.format(self.srcport, self.dstport, self.absseqnum, self.absacknum, self.flags, self.winsize)
        
 # ============================================================================================================
 #

@@ -36,7 +36,7 @@ class packet:
             self.eth_key = (self.ethh.dstaddr, self.ethh.srcaddr, self.ethh.ethtype)
 
         match self.ethh.ethtype:
-            case 0x0806: #ARP_PROTO
+            case '0x806': #ARP_PROTO
                 self.arph = self.get_header(self.packet_buff, ETHHDRLEN, arpheader)
                 if self.arph != None:
                     match self.arph.proto_type:
@@ -51,7 +51,7 @@ class packet:
                             dstip = '-'
                     self.protocols["arp"] = self.arph
                     self.arp_key = (self.arph.srcmac, srcip, self.arph.dstmac, dstip, self.arph.opcode)
-            case 0x0800:
+            case '0x800':
                 self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header) #self.get_ip4_header(self.packet_buff, ETHHDRLEN)
                 if self.ip4h != None:
                     self.protocols["ip4"] = self.ip4h
@@ -74,10 +74,8 @@ class packet:
                             if self.udph != None:
                                 self.protocols["udp"] = self.udph
                                 self.udp_key = (self.udph.srcport, self.udph.dstport)     
-            case 0x86DD:
+            case '0x86DD':
                 self.ip6h = self.get_header(self.packet_buff, ETHHDRLEN, ip6header)
-                # srcip = socket.inet_ntop(socket.AF_INET6, ip6h.srcaddrb)
-                # dstip = socket.inet_ntop(socket.AF_INET6, ip6h.dstaddrb)
                 if self.ip6h != None:
                     self.protocols["ip6"] =  self.ip6h
                     srcip = socket.inet_ntop(socket.AF_INET6, self.ip6h.srcaddrb)
@@ -167,10 +165,12 @@ class pcap:
         PACKET_COUNT = 0
         self.fname = filename
         self.stream_dicts = connections()
+        self.packet_headers = {}
         for length, time, pktbuf in rpcap(self.fname):		# here we examine each packet
             PACKET_COUNT += 1
             single_packet = packet(PACKET_COUNT, length, time, pktbuf)
             single_packet_num, single_packet_protocols = single_packet.get_protocols()
+            self.packet_headers[single_packet_num] = single_packet_protocols
             for connection_name, connection_dict in self.stream_dicts.get_connections():
                 key = None
                 if connection_name.lower() in single_packet_protocols:
@@ -202,6 +202,9 @@ class pcap:
 
     def get_connections(self):
         return self.stream_dicts.get_connections()
+    
+    def get_packet_headers(self):
+        return self.packet_headers
 
 def print_from_terminal():
     num_packets = len(sys.argv)-1
@@ -220,14 +223,20 @@ def print_from_terminal():
                 print(f"File {single_pcap} not a pcap. Aborting.\n")
             else:
                 FILENAME = single_pcap
-                parsed_pcap = pcap(FILENAME)
-                for name, connection in parsed_pcap.get_connections():
-                    print(name)
-                    for key in connection:
-                        print(key, [connection[key][i][0] for i in range(len(connection[key]))])
-                # for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
-                #     PACKET_COUNT += 1
-                #     print(packet(PACKET_COUNT, length, time, pktbuf).get_protocols())
+                # parsed_pcap = pcap(FILENAME)
+                # for name, connection in parsed_pcap.get_connections():
+                #     print(name)
+                #     for key in connection:
+                #         print(key, [connection[key][i][0] for i in range(len(connection[key]))])
+                for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
+                    PACKET_COUNT += 1
+                    num_protocols = packet(PACKET_COUNT, length, time, pktbuf).get_protocols()
+                    packet_num = num_protocols[0]
+                    protocols = num_protocols[1]
+                    protocols_attributes = {}
+                    for key in protocols:
+                        protocols_attributes[key] = vars(protocols[key])
+                    print(packet_num, protocols_attributes)
             
 #                 eth_sum = 0
 #                 for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
