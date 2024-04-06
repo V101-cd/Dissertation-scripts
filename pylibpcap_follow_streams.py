@@ -55,9 +55,9 @@ class packet:
                 self.ip4h = self.get_header(self.packet_buff, ETHHDRLEN, ip4header)
                 if self.ip4h != None:
                     self.protocols["ip4"] = self.ip4h
-                    srcip = socket.inet_ntoa(self.ip4h.srcaddrb)
-                    dstip = socket.inet_ntoa(self.ip4h.dstaddrb)
-                    self.ip4_key = (srcip, dstip)
+                    # srcip = socket.inet_ntoa(self.ip4h.srcaddrb)
+                    # dstip = socket.inet_ntoa(self.ip4h.dstaddrb)
+                    self.ip4_key = (self.ip4h.srcaddrb, self.ip4h.dstaddrb)
                     match self.ip4h.proto:
                         case 1:
                             self.icmp4h = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, icmp4header)

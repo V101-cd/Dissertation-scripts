@@ -90,7 +90,7 @@ class header_diagram():
             self.diagram_label.setFixedSize(775,275)
             self.dst_addr_label = QLabel(str(self.field_values["dstaddr"]))
             self.dst_addr_label.setParent(self.diagram_label)
-            self.dst_addr_label.move(QPoint(225,105))
+            self.dst_addr_label.move(QPoint(225,100))
 
             self.src_addr_label = QLabel(str(self.field_values["srcaddr"]))
             self.src_addr_label.setParent(self.diagram_label)
@@ -101,14 +101,14 @@ class header_diagram():
             self.ethtype_label.move(QPoint(165,220))
         
         if header_type == "arp":
-            self.diagram_label.setFixedSize(775,330)
+            self.diagram_label.setFixedSize(775,350)
             self.hardware_type_label = QLabel(str(self.field_values["hw_type"]))
             self.hardware_type_label.setParent(self.diagram_label)
-            self.hardware_type_label.move(QPoint(190,70))
+            self.hardware_type_label.move(QPoint(190,68))
 
             self.protocol_type_label = QLabel(str(self.field_values["proto_type"]))
             self.protocol_type_label.setParent(self.diagram_label)
-            self.protocol_type_label.move(QPoint(525,70))
+            self.protocol_type_label.move(QPoint(525,68))
 
             self.hardware_size_label = QLabel(str(self.field_values["hw_size"]))
             self.hardware_size_label.setParent(self.diagram_label)
@@ -124,19 +124,77 @@ class header_diagram():
 
             self.src_mac_label = QLabel(str(self.field_values["srcmac"]))
             self.src_mac_label.setParent(self.diagram_label)
-            self.src_mac_label.move(QPoint(230,150))
+            self.src_mac_label.move(QPoint(235,143))
 
             self.src_ip_label = QLabel(str(self.field_values["proto_src_addrb"]))
             self.src_ip_label.setParent(self.diagram_label)
-            self.src_ip_label.move(QPoint(545,190))
+            self.src_ip_label.move(QPoint(545,185))
 
             self.dst_mac_label = QLabel(str(self.field_values["dstmac"]))
             self.dst_mac_label.setParent(self.diagram_label)
-            self.dst_mac_label.move(QPoint(586,225))
+            self.dst_mac_label.move(QPoint(586,228))
 
             self.dst_ip_label = QLabel(str(self.field_values["proto_dst_addrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
-            self.dst_ip_label.move(QPoint(230,300))
+            self.dst_ip_label.move(QPoint(235,290))
+        
+        if header_type == "ipv4":
+            self.diagram_label.setFixedSize(775,350)
+            self.version_label = QLabel("4")
+            self.version_label.setParent(self.diagram_label)
+            self.version_label.move(QPoint(106,83))
+
+            self.header_length_label = QLabel(str(self.field_values["iphdrlen"]))
+            self.header_length_label.setParent(self.diagram_label)
+            self.header_length_label.move(QPoint(190,83))
+
+            self.diff_serv_label = QLabel(str(self.field_values["dsfield"]))
+            self.diff_serv_label.setParent(self.diagram_label)
+            self.diff_serv_label.move(QPoint(315,83))
+
+            self.length_label = QLabel(str(self.field_values["length"]))
+            self.length_label.setParent(self.diagram_label)
+            self.length_label.move(QPoint(514,74))
+
+            self.ident_label = QLabel(str(self.field_values["ident"]))
+            self.ident_label.setParent(self.diagram_label)
+            self.ident_label.move(QPoint(178,113))
+
+            self.reserved_label = QLabel(str(self.field_values["reserved"]))
+            self.reserved_label.setParent(self.diagram_label)
+            self.reserved_label.move(QPoint(410,123))
+
+            self.df_label = QLabel(str(self.field_values["df"]))
+            self.df_label.setParent(self.diagram_label)
+            self.df_label.move(QPoint(430,123))
+
+            self.mf_label = QLabel(str(self.field_values["mf"]))
+            self.mf_label.setParent(self.diagram_label)
+            self.mf_label.move(QPoint(450,123))
+
+            self.frag_offset_label = QLabel(str(self.field_values["fragoffset"]))
+            self.frag_offset_label.setParent(self.diagram_label)
+            self.frag_offset_label.move(QPoint(590,113))
+
+            self.ttl_label = QLabel(str(self.field_values["ttl"]))
+            self.ttl_label.setParent(self.diagram_label)
+            self.ttl_label.move(QPoint(178,152))
+
+            self.protocol_label = QLabel(str(self.field_values["proto"]))
+            self.protocol_label.setParent(self.diagram_label)
+            self.protocol__label.move(QPoint(318,152))
+
+            self.checksum_label = QLabel(str(self.field_values["chksum"]))
+            self.checksum_label.setParent(self.diagram_label)
+            self.checksum_label.move(QPoint(505,152))
+            
+            self.src_ip_label = QLabel(str(self.field_values["srcaddrb"]))
+            self.src_ip_label.setParent(self.diagram_label)
+            self.src_ip_label.move(QPoint(231,190))
+
+            self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
+            self.dst_ip_label.setParent(self.diagram_label)
+            self.dst_ip_label.move(QPoint(231,230))
             
     def get_diagram_label(self):
         return self.diagram_label
@@ -295,7 +353,8 @@ class MainWindow(QMainWindow):
                 # self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
                 print("visualised arp")
             if key == "ip4":
-                self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
                 self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
@@ -338,6 +397,12 @@ class MainWindow(QMainWindow):
         if header_type == "arp":
             diagram = header_diagram("./arp-frame-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "ARP")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "ip4":
+            diagram = header_diagram("./ipv4-packet-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "IPv4")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)

@@ -157,13 +157,17 @@ class ip4header:
         self.dsfield = None			# 
         self.length  = None			# IP and TCP/UDP headers and DATA
         self.ident   = None			# ignored for outbound packets
-        self.fragflags = None
+        # self.fragflags = None
+        self.reserved  = None
+        self.df      = None
+        self.mf      = None
         self.fragoffset= None
         self.ttl     = None
         self.proto   = None
         self.chksum  = None
         self.srcaddrb= None
         self.dstaddrb= None
+        self.verbose = None
 
     # the following static method returns an ip4header object
     @staticmethod
@@ -176,16 +180,39 @@ class ip4header:
         if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip4h.iphdrlen) != 0xffff: return None 	# drop packet
         a = struct.unpack_from('!BHHHBBH4s4s', buf, bufstart+1)
         (ip4h.dsfield, ip4h.length, ip4h.ident, fragword, ip4h.ttl, ip4h.proto, ip4h.chksum, ip4h.srcaddrb, ip4h.dstaddrb) = a
-        ip4h.fragflags = (fragword >> 13) & 0x7
+        # ip4h.fragflags = (fragword >> 13) & 0x7
+        fragflags = (bin((fragword >> 13) & 0x7)[2:]).zfill(8)
+        ip4h.reserved = int(fragflags[0])
+        ip4h.df = int(fragflags[1])
+        ip4h.mf = int(fragflags[2])
         ip4h.fragoffset = fragword & ((1<<13) - 1)
-        if ip4h.fragoffset != 0 or (ip4h.fragflags & 1) != 0: 
-            eprint('fragmented packet received/dropped;  fragflags={:x} offset={} word={:x}'.format(ip4h.fragflags, ip4h.fragoffset))
-            return None
+        ip4h.ttl = int(ip4h.ttl)
+        ip4h.proto = int(ip4h.proto)
+        ip4h.srcaddrb = realsocket.inet_ntoa(ip4h.srcaddrb)
+        ip4h.dstaddrb = realsocket.inet_ntoa(ip4h.dstaddrb)
+        ip4h.verbose = ip4h.get_verbose()
         return ip4h
         
     @staticmethod
     def iphdrlen(buf : bytes, bufstart):
         return (buf[bufstart] & 0x0f) * 4
+
+    def get_verbose(self):
+        match self.proto:
+            case 1:
+                return "Protocol type: Internet Control Message Protocol (ICMP)\n"
+            case 2:
+                return "Protocol type: Internet Group Management Protocol (IGMP)\n"
+            case 6:
+                return "Protocol type: Transmission Control Protocol (TCP)\n"
+            case 8:
+                return "Protocol type: Exterior Gateway Protocol (EGP)\n"
+            case 9:
+                return "Protocol type: Interior Gateway Protocol (IGP)\n"
+            case 17:
+                return "Protocol type: User Datagram Protocol (UDP)\n"
+            case other:
+                return "Protocol type: Unknown\n"
 
     # Linux fills in the ip-header checksum, so we just leave it 0
     def write(self, buf : bytearray, bufstart):
