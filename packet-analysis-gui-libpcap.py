@@ -49,7 +49,8 @@ class FrameWindow(QScrollArea):
 
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
-        self.layout.addWidget(diagram_label)
+        # self.layout.addWidget(diagram_label)
+        self.layout.addLayout(diagram_label)
 
     def add_verbose_label(self, message):
         self.layout.addWidget(QLabel(message))
@@ -78,14 +79,16 @@ class draw_frame():
         # self.frame.resizeRowsToContents()
 
 class header_diagram():
-    def __init__(self, diagram_location, header_type, field_values):
+    def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
         super().__init__()
+        self.layout = QVBoxLayout()
         self.field_values = field_values
         self.diagram = QPixmap(diagram_location)
         self.diagram_label = QLabel()
         self.diagram_label.setScaledContents(True)
         self.diagram_label.setPixmap(self.diagram)
-
+        self.layout.addWidget(self.diagram_label)
+        
         if header_type == "ethernet":
             self.diagram_label.setFixedSize(775,275)
             self.dst_addr_label = QLabel(str(self.field_values["dstaddr"]))
@@ -124,7 +127,7 @@ class header_diagram():
 
             self.src_mac_label = QLabel(str(self.field_values["srcmac"]))
             self.src_mac_label.setParent(self.diagram_label)
-            self.src_mac_label.move(QPoint(235,143))
+            self.src_mac_label.move(QPoint(235,148))
 
             self.src_ip_label = QLabel(str(self.field_values["proto_src_addrb"]))
             self.src_ip_label.setParent(self.diagram_label)
@@ -132,11 +135,11 @@ class header_diagram():
 
             self.dst_mac_label = QLabel(str(self.field_values["dstmac"]))
             self.dst_mac_label.setParent(self.diagram_label)
-            self.dst_mac_label.move(QPoint(586,228))
+            self.dst_mac_label.move(QPoint(586,231))
 
             self.dst_ip_label = QLabel(str(self.field_values["proto_dst_addrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
-            self.dst_ip_label.move(QPoint(235,290))
+            self.dst_ip_label.move(QPoint(235,294))
         
         if header_type == "ip4":
             self.diagram_label.setFixedSize(775,350)
@@ -195,9 +198,25 @@ class header_diagram():
             self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
             self.dst_ip_label.move(QPoint(231,226))
-            
+
+        if header_type == "ip6":
+            self.diagram_label.setFixedSize(775,350)
+            if extension_header_diagram != None:
+                for i in range(len(self.field_values["extheaders"])):
+                    self.ext_diagram = QPixmap(extension_header_diagram)
+                    self.ext_diagram_label = QLabel()
+                    self.ext_diagram_label.setScaledContents(True)
+                    self.ext_diagram_label.setPixmap(self.ext_diagram)
+                    self.ext_diagram_label.setFixedSize(765,46)
+                    
+                    self.extension_next_header_label = QLabel(str(self.field_values["extheaders"][i][0]))
+                    self.extension_next_header_label.setParent(self.ext_diagram_label)
+                    self.extension_next_header_label.move(QPoint(180,17))
+                    self.layout.addWidget(self.ext_diagram_label)
+
     def get_diagram_label(self):
-        return self.diagram_label
+        # return self.diagram_label
+        return self.layout
     
     def get_verbose_label(self):
         if self.field_values["verbose"] != None:
@@ -357,7 +376,8 @@ class MainWindow(QMainWindow):
                 # self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
-                self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
                 print("visualised ipv6")
             if key == "tcp":
                 self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
@@ -403,6 +423,20 @@ class MainWindow(QMainWindow):
         if header_type == "ip4":
             diagram = header_diagram("./ipv4-packet-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "IPv4")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "ip6":
+            if field_values["extheaders"] != []:
+                diagram = header_diagram("./ipv6-base-packet-header.png", header_type, field_values, "./ipv6-packet-extension-header.png")
+                # extension = True
+            else:
+                diagram = header_diagram("./ipv6-packet-header-without-extensions.png", header_type, field_values)
+                # extension = None
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "IPv6")
+            # if extension != None:
+            #     for _ in range(len(field_values["extheaders"])):
+            #         self.header_window.add_diagram_label(extension.get_diagram_label(), "")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)

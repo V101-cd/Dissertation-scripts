@@ -68,14 +68,14 @@ class ethheader:
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
 
     def get_verbose(self):
-        match self.ethtype:
+        match (self.ethtype).lower():
             case '0x800':
                 return "Ethernet type: Internet Protocol Version 4 (IPv4)"
             case '0x806':
                 return "Ethernet type: Address Resolution Protocol (ARP)"
             case '0x8035':
                 return "Ethernet type: Reverse Address Resolution Protocol (RARP)"
-            case '0x86DD':
+            case '0x86dd':
                 return "Ethernet type: Internet Protocol Version 6 (IPv6)"
             case other:
                 return None
@@ -247,6 +247,7 @@ class ip6header:
         self.srcaddrb           = None
         self.dstaddrb           = None
         self.extheaders         = [] # Extension headers
+        self.verbose            = None
 
     # the following static method returns an ip6header object
     @staticmethod
@@ -278,16 +279,68 @@ class ip6header:
             if header == 0: ## Hop-by-Hop Options Header
                 next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
-        ip6h.extheaders = next_headers[1:]
+        ip6h.extheaders = next_headers
+        ip6h.get_verbose()
         return ip6h
 
+    def get_verbose(self):
+        match int(self.nextheader, 16):
+            case 0:
+                self.verbose = f"Next Header type {self.nextheader}: Hop-by-Hop Options Extension Header\n"
+            case 43:
+                self.verbose = f"Next Header type {self.nextheader}: Routing Extension Header\n"
+            case 44:
+                self.verbose = f"Next Header type {self.nextheader}: Fragment Extension Header\n"
+            case 51:
+                self.verbose = f"Next Header type {self.nextheader}: Authentication Header (AH) Extension Header\n"
+            case 50:
+                self.verbose = f"Next Header type {self.nextheader}: Encapsulating Security Payload (ESP) Extension Header\n"
+            case 60:
+                self.verbose = f"Next Header type {self.nextheader}: Destination Options Extension Header\n"
+            case 6:
+                self.verbose = f"Next Header: TCP\n"
+            case 17:
+                self.verbose = f"Next Header: UDP\n"
+            case 1:
+                self.verbose = f"Next Header: ICMPv4\n"
+            case 58:
+                self.verbose = f"Next Header: ICMPv6\n"
+            case other:
+                self.verbose = f"Next Header type {self.nextheader}: Unknown\n"
+            
+        for i, ext_header in enumerate(self.extheaders):
+            ext_headers = int(str(ext_header[0]), 16)
+            match ext_headers:
+                case 0:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Hop-by-Hop Options\n"
+                case 43:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Routing\n"
+                case 44:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Fragment\n"
+                case 51:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Authentication Header (AH)\n"
+                case 50:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Encapsulating Security Payload (ESP)\n"
+                case 60:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Destination Options\n"
+                case 6:
+                    self.verbose += f"Next Header: TCP\n"
+                case 17:
+                    self.verbose += f"Next Header: UDP\n"
+                case 1:
+                    self.verbose += f"Next Header: ICMPv4\n"
+                case 58:
+                    self.verbose += f"Next Header: ICMPv6\n"
+                case other:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Unknown\n"
+        
     
 class icmp4header:
     def __init__(self): ##datatracker.ietf.org/html/rfc792
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
-        self.various        = None #various uses, 32 bits
+        # self.various        = None #various uses, 32 bits
         self.verbose        = None
         # self.ip4header      = None #IPv4 header
         # self.datagrambytes  = None #first 64 bits of the datagram
@@ -306,7 +359,7 @@ class icmp4header:
         counter += (8//4)
         icmph.checksum = (hexbuf[counter: counter + (16//4)])
         counter += (16//4)
-        icmph.various = "Unknown"
+        # icmph.various = "Unknown"
         # print(icmph.type, icmph.code, icmph.checksum)
         match icmph.type:
             case 0:
