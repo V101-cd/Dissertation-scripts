@@ -278,7 +278,7 @@ class ip6header:
             if header == 0: ## Hop-by-Hop Options Header
                 next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
-        ip6h.extheaders = next_headers
+        ip6h.extheaders = next_headers[1:]
         return ip6h
 
     
