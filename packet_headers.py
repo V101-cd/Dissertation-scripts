@@ -255,21 +255,23 @@ class ip6header:
         hexbuf = buf[bufstart:].hex() ##because we convert the bytestream to hex, divide all offsets by 4
         ip6h = ip6header()
         counter = 0
-        ip6h.version = (hexbuf[counter: counter + (4//4)])
+        ip6h.version = int(hexbuf[counter: counter + (4//4)])
         counter += (4//4)
-        ip6h.trafficclassfield = (hexbuf[counter: counter + (8//4)]) ##traffic class
+        ip6h.trafficclassfield = hex(int(hexbuf[counter: counter + (8//4)],16)) ##traffic class
         counter += (8//4)
-        ip6h.flowlabel = (hexbuf[counter: counter + (20//4)]) ##flow label
+        ip6h.flowlabel = hex(int(hexbuf[counter: counter + (20//4)],16)) ##flow label
         counter += (20//4) 
-        ip6h.length = (hexbuf[counter: counter + (16//4)]) ##payload length
+        ip6h.length = int(hexbuf[counter: counter + (16//4)],16) ##payload length
         counter += (16//4) 
-        ip6h.nextheader = (hexbuf[counter: counter + (8//4)]) ##next header
+        ip6h.nextheader = hex(int(hexbuf[counter: counter + (8//4)],16)) ##next header
         counter += (8//4) 
-        ip6h.hoplimit = hexbuf[counter: counter + (8//4)] ##hop limit
+        ip6h.hoplimit = int(hexbuf[counter: counter + (8//4)],16) ##hop limit
         counter += (8//4) 
-        ip6h.srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
+        srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
+        ip6h.srcaddrb = realsocket.inet_ntop(realsocket.AF_INET6, srcaddrb)
         counter += (128//4) 
-        ip6h.dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
+        dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
+        ip6h.dstaddrb = realsocket.inet_ntop(realsocket.AF_INET6, dstaddrb)
         counter += (128//4)
         next_headers = []
         if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
@@ -456,21 +458,108 @@ class udpheader:
         self.dstport = None
         self.length  = None
         self.chksum  = None
+        self.verbose = None
         
     # We need the iphdr to verify the checksum
     @staticmethod
     def read(buf, bufstart, iphdr=None):
         udph = udpheader()
         (udph.srcport, udph.dstport, udph.length, udph.chksum) = struct.unpack_from('>HHHH', buf, bufstart)
-        if VERIFY_CHECKSUMS and udph.chksum != 0:
-            if not iphdr: 
-                eprint('call to udpheader.read() needs iphdr')
-                return None
-            calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
-            if calc_chksum != 0xffff: 
-                eprint('packet with bad UDP checksum received')
-                return None
+        udph.srcport = int(udph.srcport)
+        udph.dstport = int(udph.dstport)
+        udph.length = int(udph.length)
+        udph.chksum = hex(udph.chksum)
+        # if VERIFY_CHECKSUMS and udph.chksum != 0:
+        #     if not iphdr: 
+        #         eprint('call to udpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad UDP checksum received')
+        #         return None
+        udph.get_verbose()
         return udph
+
+    def get_verbose(self):
+        match self.srcport:
+            case 20:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose = f"Source Port {self.srcport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose = f"Source Port {self.srcport} : Telnet Protocol\n"
+            case 25:
+                self.verbose = f"Source Port {self.srcport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose = f"Source Port {self.srcport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose = f"Source Port {self.srcport} : Gopher Protocol\n"
+            case 80:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose = f"Source Port {self.srcport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose = f"Source Port {self.srcport} not well-known\n"
+        
+        match self.dstport:
+            case 20:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose += f"Destination Port {self.dstport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose += f"Destination Port {self.dstport} : Telnet Protocol\n"
+            case 25:
+                self.verbose += f"Destination Port {self.dstport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose += f"Destination Port {self.dstport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose += f"Destination Port {self.dstport} : Gopher Protocol\n"
+            case 80:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose += f"Destination Port {self.dstport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose += f"Destination Port {self.dstport} not well-known\n"
  
     # Does NOT do the checksum, because we don't really know the ip header source address
     def write_nochk(self, buf : bytearray, bufstart):

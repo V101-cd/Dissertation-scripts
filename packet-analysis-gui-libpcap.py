@@ -200,19 +200,71 @@ class header_diagram():
             self.dst_ip_label.move(QPoint(231,226))
 
         if header_type == "ip6":
-            self.diagram_label.setFixedSize(775,350)
+            self.diagram_label.setFixedSize(775,341)
+
+            self.version_label = QLabel("6")
+            self.version_label.setParent(self.diagram_label)
+            self.version_label.move(QPoint(106,90))
+
+            self.traffic_class_label = QLabel(str(self.field_values["trafficclassfield"]))
+            self.traffic_class_label.setParent(self.diagram_label)
+            self.traffic_class_label.move(QPoint(230,90))
+
+            self.flow_label = QLabel(str(self.field_values["flowlabel"]))
+            self.flow_label.setParent(self.diagram_label)
+            self.flow_label.move(QPoint(440,81))
+
+            self.payload_len_label = QLabel(str(self.field_values["length"]))
+            self.payload_len_label.setParent(self.diagram_label)
+            self.payload_len_label.move(QPoint(210,122))
+
+            self.next_header_label = QLabel(str(self.field_values["nextheader"]))
+            self.next_header_label.setParent(self.diagram_label)
+            self.next_header_label.move(QPoint(513,122))
+
+            self.hop_limit_label = QLabel(str(self.field_values["hoplimit"]))
+            self.hop_limit_label.setParent(self.diagram_label)
+            self.hop_limit_label.move(QPoint(670,122))
+
+            self.src_ip_label = QLabel(str(self.field_values["srcaddrb"]))
+            self.src_ip_label.setParent(self.diagram_label)
+            self.src_ip_label.move(QPoint(231,170))
+
+            self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
+            self.dst_ip_label.setParent(self.diagram_label)
+            self.dst_ip_label.move(QPoint(231,260))
+
             if extension_header_diagram != None:
                 for i in range(len(self.field_values["extheaders"])):
                     self.ext_diagram = QPixmap(extension_header_diagram)
                     self.ext_diagram_label = QLabel()
                     self.ext_diagram_label.setScaledContents(True)
                     self.ext_diagram_label.setPixmap(self.ext_diagram)
-                    self.ext_diagram_label.setFixedSize(765,46)
+                    self.ext_diagram_label.setFixedSize(765,50)
                     
                     self.extension_next_header_label = QLabel(str(self.field_values["extheaders"][i][0]))
                     self.extension_next_header_label.setParent(self.ext_diagram_label)
                     self.extension_next_header_label.move(QPoint(180,17))
                     self.layout.addWidget(self.ext_diagram_label)
+
+        if header_type == "udp":
+            self.diagram_label.setFixedSize(775,134)
+            self.source_port_label = QLabel(str(self.field_values["srcport"]))
+            self.source_port_label.setParent(self.diagram_label)
+            self.source_port_label.move(QPoint(189,69))
+
+            self.dest_port_label = QLabel(str(self.field_values["dstport"]))
+            self.dest_port_label.setParent(self.diagram_label)
+            self.dest_port_label.move(QPoint(545,69))
+
+            self.length_label = QLabel(str(self.field_values["length"]))
+            self.length_label.setParent(self.diagram_label)
+            self.length_label.move(QPoint(189,105))
+
+            self.checksum_label = QLabel(str(self.field_values["chksum"]))
+            self.checksum_label.setParent(self.diagram_label)
+            self.checksum_label.move(QPoint(545,105))
+
 
     def get_diagram_label(self):
         # return self.diagram_label
@@ -383,7 +435,8 @@ class MainWindow(QMainWindow):
                 self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised tcp")
             if key == "udp":
-                self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised udp")
             if key == "icmp4":
                 self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
@@ -437,6 +490,12 @@ class MainWindow(QMainWindow):
             # if extension != None:
             #     for _ in range(len(field_values["extheaders"])):
             #         self.header_window.add_diagram_label(extension.get_diagram_label(), "")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "udp":
+            diagram = header_diagram("./udp-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "UDP")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
