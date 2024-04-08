@@ -248,7 +248,7 @@ class header_diagram():
                     self.layout.addWidget(self.ext_diagram_label)
 
         if header_type == "udp":
-            self.diagram_label.setFixedSize(775,134)
+            self.diagram_label.setFixedSize(775,150)
             self.source_port_label = QLabel(str(self.field_values["srcport"]))
             self.source_port_label.setParent(self.diagram_label)
             self.source_port_label.move(QPoint(189,69))
@@ -264,6 +264,76 @@ class header_diagram():
             self.checksum_label = QLabel(str(self.field_values["chksum"]))
             self.checksum_label.setParent(self.diagram_label)
             self.checksum_label.move(QPoint(545,105))
+
+        if header_type == "tcp":
+            self.diagram_label.setFixedSize(775,290)
+            self.source_port_label = QLabel(str(self.field_values["srcport"]))
+            self.source_port_label.setParent(self.diagram_label)
+            self.source_port_label.move(QPoint(189,71))
+
+            self.dest_port_label = QLabel(str(self.field_values["dstport"]))
+            self.dest_port_label.setParent(self.diagram_label)
+            self.dest_port_label.move(QPoint(545,71))
+
+            self.seq_num_label = QLabel(str(self.field_values["absseqnum"]))
+            self.seq_num_label.setParent(self.diagram_label)
+            self.seq_num_label.move(QPoint(252,118))
+
+            self.acknowledgement_label = QLabel(str(self.field_values["absacknum"]))
+            self.acknowledgement_label.setParent(self.diagram_label)
+            self.acknowledgement_label.move(QPoint(252,159))
+
+            self.header_length_label = QLabel(str(self.field_values["tcphdrlen"]))
+            self.header_length_label.setParent(self.diagram_label)
+            self.header_length_label.move(QPoint(106,210))
+
+            self.reserved_label = QLabel(str(self.field_values["reserved"]))
+            self.reserved_label.setParent(self.diagram_label)
+            self.reserved_label.move(QPoint(187,210))
+
+            self.cwr_label = QLabel(str(self.field_values["cwr"]))
+            self.cwr_label.setParent(self.diagram_label)
+            self.cwr_label.move(QPoint(241,210))
+
+            self.ece_label = QLabel(str(self.field_values["ece"]))
+            self.ece_label.setParent(self.diagram_label)
+            self.ece_label.move(QPoint(262,210))
+
+            self.urg_label = QLabel(str(self.field_values["urg"]))
+            self.urg_label.setParent(self.diagram_label)
+            self.urg_label.move(QPoint(283,210))
+
+            self.ack_label = QLabel(str(self.field_values["ack"]))
+            self.ack_label.setParent(self.diagram_label)
+            self.ack_label.move(QPoint(304,210))
+
+            self.psh_label = QLabel(str(self.field_values["psh"]))
+            self.psh_label.setParent(self.diagram_label)
+            self.psh_label.move(QPoint(325,210))
+
+            self.rst_label = QLabel(str(self.field_values["rst"]))
+            self.rst_label.setParent(self.diagram_label)
+            self.rst_label.move(QPoint(346,210))
+
+            self.syn_label = QLabel(str(self.field_values["syn"]))
+            self.syn_label.setParent(self.diagram_label)
+            self.syn_label.move(QPoint(367,210))
+
+            self.fin_label = QLabel(str(self.field_values["fin"]))
+            self.fin_label.setParent(self.diagram_label)
+            self.fin_label.move(QPoint(388,210))
+
+            self.advertised_window_label = QLabel(str(self.field_values["winsize"]))
+            self.advertised_window_label.setParent(self.diagram_label)
+            self.advertised_window_label.move(QPoint(587,199))
+
+            self.checksum_label = QLabel(str(self.field_values["chksum"]))
+            self.checksum_label.setParent(self.diagram_label)
+            self.checksum_label.move(QPoint(210,241))
+
+            self.urgent_pointer_label = QLabel(str(self.field_values["urgent"]))
+            self.urgent_pointer_label.setParent(self.diagram_label)
+            self.urgent_pointer_label.move(QPoint(545,241))
 
 
     def get_diagram_label(self):
@@ -432,7 +502,8 @@ class MainWindow(QMainWindow):
                 # self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
                 print("visualised ipv6")
             if key == "tcp":
-                self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised tcp")
             if key == "udp":
                 self.view_header_diagram(key, packet_header_attributes[key])
@@ -496,6 +567,12 @@ class MainWindow(QMainWindow):
         if header_type == "udp":
             diagram = header_diagram("./udp-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "UDP")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "tcp":
+            diagram = header_diagram("./tcp-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "TCP")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)

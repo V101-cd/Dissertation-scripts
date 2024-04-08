@@ -584,23 +584,29 @@ class tcpheader:
         self.winsize  = None
         self.chksum   = None
         self.urgent   = None
+        self.verbose  = None
         
         
     # We need the iphdr to verify the checksum
     @staticmethod
     def read(buf : bytes, bufstart, iphdr=None):	# bufstart is start of tcp header   
-        if VERIFY_CHECKSUMS:  
-            if not iphdr: 
-                eprint('call to tcpheader.read() needs iphdr')
-                return None
-            calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, TCP_PROTO, len(buf)-bufstart)
-            if calc_chksum != 0xffff: 
-                eprint('packet with bad TCP checksum received')
-                return  None
+        # if VERIFY_CHECKSUMS:  
+        #     if not iphdr: 
+        #         eprint('call to tcpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, TCP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad TCP checksum received')
+        #         return  None
         tcph = tcpheader()
         # absacknum in the following may be garbage
         (tcph.srcport, tcph.dstport, tcph.absseqnum, tcph.absacknum, flagword, tcph.winsize, tcph.chksum, tcph.urgent) = struct.unpack_from('!HHIIHHHH', buf, bufstart)
-        tcph.tcphdrlen = (flagword >> 12)*4
+        tcph.srcport = int(tcph.srcport)
+        tcph.dstport = int(tcph.dstport)
+        tcph.absseqnum = int(tcph.absseqnum)
+        tcph.absacknum = int(tcph.absacknum)
+        tcph.tcphdrlen = int((flagword >> 12)*4)
+        tcph.reserved = (bin(0)[2:]).zfill(4) ##set to 0; can't be used because software would likely drop segments with tcph.reserved != 0 as an error
         flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
         tcph.cwr = int(flags[0])
         tcph.ece = int(flags[1])
@@ -610,8 +616,92 @@ class tcpheader:
         tcph.rst = int(flags[5])
         tcph.syn = int(flags[6])
         tcph.fin = int(flags[7])
-        tcph.reserved = (bin(0)[2:]).zfill(4) ##set to 0; can't be used because software would likely drop segments with tcph.reserved != 0 as an error
+        tcph.winsize = int(tcph.winsize)
+        tcph.chksum = hex(tcph.chksum)
+        tcph.urgent = int(tcph.urgent)
+        tcph.get_verbose()
         return tcph
+    
+    def get_verbose(self):
+        match self.srcport:
+            case 20:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose = f"Source Port {self.srcport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose = f"Source Port {self.srcport} : Telnet Protocol\n"
+            case 25:
+                self.verbose = f"Source Port {self.srcport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose = f"Source Port {self.srcport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose = f"Source Port {self.srcport} : Gopher Protocol\n"
+            case 80:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose = f"Source Port {self.srcport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose = f"Source Port {self.srcport} not well-known\n"
+        
+        match self.dstport:
+            case 20:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose += f"Destination Port {self.dstport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose += f"Destination Port {self.dstport} : Telnet Protocol\n"
+            case 25:
+                self.verbose += f"Destination Port {self.dstport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose += f"Destination Port {self.dstport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose += f"Destination Port {self.dstport} : Gopher Protocol\n"
+            case 80:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose += f"Destination Port {self.dstport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose += f"Destination Port {self.dstport} not well-known\n"
         
     # needs srport, dstport, absseqnum, absacknum, flagword, winsize
     def write(self, buf : bytearray, bufstart, iphdr: ip4header):
