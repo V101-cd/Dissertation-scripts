@@ -68,39 +68,85 @@ class ethheader:
         struct.pack_into('!6s6sH', buf, bufstart, self.dstaddr, self.srcaddr, self.ethtype)
 
     def get_verbose(self):
-        match self.ethtype:
+        match (self.ethtype).lower():
             case '0x800':
                 return "Ethernet type: Internet Protocol Version 4 (IPv4)"
             case '0x806':
                 return "Ethernet type: Address Resolution Protocol (ARP)"
             case '0x8035':
                 return "Ethernet type: Reverse Address Resolution Protocol (RARP)"
-            case '0x86DD':
+            case '0x86dd':
                 return "Ethernet type: Internet Protocol Version 6 (IPv6)"
             case other:
                 return None
 
 class arpheader:
     def __init__(self):
-        self.proto_type = None
-        self.opcode = None
-        self.srcmac = None
+        self.hw_type         = None
+        self.proto_type      = None
+        self.hw_size         = None
+        self.proto_size      = None
+        self.opcode          = None
+        self.srcmac          = None
         self.proto_src_addrb = None
-        self.dstmac = None
+        self.dstmac          = None
         self.proto_dst_addrb = None
-        self.isgratuituous = False
+        self.verbose         = None
     
     @staticmethod
     def read(buf: bytes, bufstart):
         arphdr = arpheader()
-        (hw_type, arphdr.proto_type, hw_size, proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        (arphdr.hw_type, arphdr.proto_type, arphdr.hw_size, arphdr.proto_size, arphdr.opcode, arphdr.srcmac, arphdr.proto_src_addrb, arphdr.dstmac, arphdr.proto_dst_addrb) = struct.unpack_from('!HHssH6sI6sI', buf, bufstart)
+        # arphdr.hw_type = int.from_bytes(arphdr.hw_type, "big")
+        arphdr.proto_type = hex(arphdr.proto_type)
+        arphdr.hw_size = int.from_bytes(arphdr.hw_size, "big")
+        arphdr.proto_size = int.from_bytes(arphdr.proto_size, "big")
+        # arphdr.opcode = int.from_bytes(arphdr.opcode, "big")
         arphdr.srcmac = bytearray(arphdr.srcmac).hex()
         arphdr.srcmac = ':'.join(arphdr.srcmac[i:i+2] for i in range (0, len(arphdr.srcmac), 2))
         arphdr.dstmac = bytearray(arphdr.dstmac).hex()
         arphdr.dstmac = ':'.join(arphdr.dstmac[i:i+2] for i in range (0, len(arphdr.dstmac), 2))
+        arphdr.verbose = arphdr.get_verbose()
         if arphdr.dstmac == 'ff:ff:ff:ff:ff:ff':
-            arphdr.isgratuituous = True
+            arphdr.verbose += "Gratuitous ARP"
         return arphdr
+    
+    def get_verbose(self):
+        self.verbose = ""
+        match self.hw_type:
+            case 1:
+                self.verbose += "Hardware type: Ethernet (10Mb)\n"
+            case 2:
+                self.verbose += "Hardware type: Experimental Ethernet (3Mb)\n"
+            case 18:
+                self.verbose += "Hardware type: Fibre Channel\n"
+            case 20:
+                self.verbose += "Hardware type: Serial Line\n"
+            case 31:
+                self.verbose += "Hardware type: IPSec tunnel\n"
+        match self.proto_type:
+            case '0x800':
+                self.verbose += "Protocol type: Internet Protocol Version 4 (IPv4)\n"
+                self.proto_src_addrb = realsocket.inet_ntoa(struct.pack('!L', self.proto_src_addrb))
+                self.proto_dst_addrb = realsocket.inet_ntoa(struct.pack('!L', self.proto_dst_addrb))
+            case '0x806':
+                self.verbose += "Protocol type: Address Resolution Protocol (ARP)\n"
+            case '0x8035':
+                self.verbose += "Protocol type: Reverse Address Resolution Protocol (RARP)\n"
+            case '0x86DD':
+                self.verbose += "Protocol type: Internet Protocol Version 6 (IPv6)\n"
+                self.proto_src_addrb = realsocket.inet_ntop(realsocket.AF_INET6, (struct.pack('!L', self.proto_src_addrb)))
+                self.proto_dst_addrb = realsocket.inet_ntop(realsocket.AF_INET6, (struct.pack('!L', self.proto_dst_addrb)))
+        match self.opcode:
+            case 1:
+                self.verbose += "Opcode: ARP Request\n"
+            case 2:
+                self.verbose += "Opcode: ARP Reply\n"
+            case 3:
+                self.verbose += "Opcode: Reverse ARP Request\n"
+            case 4:
+                self.verbose += "Opcode: Reverse ARP Reply\n"
+        return self.verbose
             
 DONTFRAG  = 0x2
 MOREFRAGS = 0x1
@@ -111,13 +157,17 @@ class ip4header:
         self.dsfield = None			# 
         self.length  = None			# IP and TCP/UDP headers and DATA
         self.ident   = None			# ignored for outbound packets
-        self.fragflags = None
+        # self.fragflags = None
+        self.reserved  = None
+        self.df      = None
+        self.mf      = None
         self.fragoffset= None
         self.ttl     = None
         self.proto   = None
         self.chksum  = None
         self.srcaddrb= None
         self.dstaddrb= None
+        self.verbose = None
 
     # the following static method returns an ip4header object
     @staticmethod
@@ -130,16 +180,39 @@ class ip4header:
         if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip4h.iphdrlen) != 0xffff: return None 	# drop packet
         a = struct.unpack_from('!BHHHBBH4s4s', buf, bufstart+1)
         (ip4h.dsfield, ip4h.length, ip4h.ident, fragword, ip4h.ttl, ip4h.proto, ip4h.chksum, ip4h.srcaddrb, ip4h.dstaddrb) = a
-        ip4h.fragflags = (fragword >> 13) & 0x7
+        # ip4h.fragflags = (fragword >> 13) & 0x7
+        fragflags = (bin((fragword >> 13) & 0x7)[2:]).zfill(8)
+        ip4h.reserved = int(fragflags[0])
+        ip4h.df = int(fragflags[1])
+        ip4h.mf = int(fragflags[2])
         ip4h.fragoffset = fragword & ((1<<13) - 1)
-        if ip4h.fragoffset != 0 or (ip4h.fragflags & 1) != 0: 
-            eprint('fragmented packet received/dropped;  fragflags={:x} offset={} word={:x}'.format(ip4h.fragflags, ip4h.fragoffset))
-            return None
+        ip4h.ttl = int(ip4h.ttl)
+        ip4h.proto = int(ip4h.proto)
+        ip4h.srcaddrb = realsocket.inet_ntoa(ip4h.srcaddrb)
+        ip4h.dstaddrb = realsocket.inet_ntoa(ip4h.dstaddrb)
+        ip4h.verbose = ip4h.get_verbose()
         return ip4h
         
     @staticmethod
     def iphdrlen(buf : bytes, bufstart):
         return (buf[bufstart] & 0x0f) * 4
+
+    def get_verbose(self):
+        match self.proto:
+            case 1:
+                return "Protocol type: Internet Control Message Protocol (ICMP)\n"
+            case 2:
+                return "Protocol type: Internet Group Management Protocol (IGMP)\n"
+            case 6:
+                return "Protocol type: Transmission Control Protocol (TCP)\n"
+            case 8:
+                return "Protocol type: Exterior Gateway Protocol (EGP)\n"
+            case 9:
+                return "Protocol type: Interior Gateway Protocol (IGP)\n"
+            case 17:
+                return "Protocol type: User Datagram Protocol (UDP)\n"
+            case other:
+                return "Protocol type: Unknown\n"
 
     # Linux fills in the ip-header checksum, so we just leave it 0
     def write(self, buf : bytearray, bufstart):
@@ -174,6 +247,7 @@ class ip6header:
         self.srcaddrb           = None
         self.dstaddrb           = None
         self.extheaders         = [] # Extension headers
+        self.verbose            = None
 
     # the following static method returns an ip6header object
     @staticmethod
@@ -181,21 +255,23 @@ class ip6header:
         hexbuf = buf[bufstart:].hex() ##because we convert the bytestream to hex, divide all offsets by 4
         ip6h = ip6header()
         counter = 0
-        ip6h.version = (hexbuf[counter: counter + (4//4)])
+        ip6h.version = int(hexbuf[counter: counter + (4//4)])
         counter += (4//4)
-        ip6h.trafficclassfield = (hexbuf[counter: counter + (8//4)]) ##traffic class
+        ip6h.trafficclassfield = hex(int(hexbuf[counter: counter + (8//4)],16)) ##traffic class
         counter += (8//4)
-        ip6h.flowlabel = (hexbuf[counter: counter + (20//4)]) ##flow label
+        ip6h.flowlabel = hex(int(hexbuf[counter: counter + (20//4)],16)) ##flow label
         counter += (20//4) 
-        ip6h.length = (hexbuf[counter: counter + (16//4)]) ##payload length
+        ip6h.length = int(hexbuf[counter: counter + (16//4)],16) ##payload length
         counter += (16//4) 
-        ip6h.nextheader = (hexbuf[counter: counter + (8//4)]) ##next header
+        ip6h.nextheader = hex(int(hexbuf[counter: counter + (8//4)],16)) ##next header
         counter += (8//4) 
-        ip6h.hoplimit = hexbuf[counter: counter + (8//4)] ##hop limit
+        ip6h.hoplimit = int(hexbuf[counter: counter + (8//4)],16) ##hop limit
         counter += (8//4) 
-        ip6h.srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
+        srcaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)]) ##source address
+        ip6h.srcaddrb = realsocket.inet_ntop(realsocket.AF_INET6, srcaddrb)
         counter += (128//4) 
-        ip6h.dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
+        dstaddrb = bytearray.fromhex(hexbuf[counter: counter + (128//4)])  ##destination address
+        ip6h.dstaddrb = realsocket.inet_ntop(realsocket.AF_INET6, dstaddrb)
         counter += (128//4)
         next_headers = []
         if int(ip6h.nextheader, base=16) not in [TCP_PROTO, UDP_PROTO, ICMPV4_PROTO, ICMPV6_PROTO]:
@@ -203,18 +279,70 @@ class ip6header:
         ##RECURSIVELY FIND EXTENSION HEADERS
         for header,offset in next_headers:
             if header == 0: ## Hop-by-Hop Options Header
-                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
+                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2 + 8)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
         ip6h.extheaders = next_headers
+        ip6h.get_verbose()
         return ip6h
 
+    def get_verbose(self):
+        match int(self.nextheader, 16):
+            case 0:
+                self.verbose = f"Next Header type {self.nextheader}: Hop-by-Hop Options Extension Header\n"
+            case 43:
+                self.verbose = f"Next Header type {self.nextheader}: Routing Extension Header\n"
+            case 44:
+                self.verbose = f"Next Header type {self.nextheader}: Fragment Extension Header\n"
+            case 51:
+                self.verbose = f"Next Header type {self.nextheader}: Authentication Header (AH) Extension Header\n"
+            case 50:
+                self.verbose = f"Next Header type {self.nextheader}: Encapsulating Security Payload (ESP) Extension Header\n"
+            case 60:
+                self.verbose = f"Next Header type {self.nextheader}: Destination Options Extension Header\n"
+            case 6:
+                self.verbose = f"Next Header: TCP\n"
+            case 17:
+                self.verbose = f"Next Header: UDP\n"
+            case 1:
+                self.verbose = f"Next Header: ICMPv4\n"
+            case 58:
+                self.verbose = f"Next Header: ICMPv6\n"
+            case other:
+                self.verbose = f"Next Header type {self.nextheader}: Unknown\n"
+            
+        for i, ext_header in enumerate(self.extheaders):
+            ext_headers = int(str(ext_header[0]), 16)
+            match ext_headers:
+                case 0:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Hop-by-Hop Options\n"
+                case 43:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Routing\n"
+                case 44:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Fragment\n"
+                case 51:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Authentication Header (AH)\n"
+                case 50:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Encapsulating Security Payload (ESP)\n"
+                case 60:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Destination Options\n"
+                case 6:
+                    self.verbose += f"Next Header: TCP\n"
+                case 17:
+                    self.verbose += f"Next Header: UDP\n"
+                case 1:
+                    self.verbose += f"Next Header: ICMPv4\n"
+                case 58:
+                    self.verbose += f"Next Header: ICMPv6\n"
+                case other:
+                    self.verbose += f"Extension Header {i+1} type {ext_headers}: Unknown\n"
+        
     
 class icmp4header:
     def __init__(self): ##datatracker.ietf.org/html/rfc792
         self.type           = None #Type, 8 bits
         self.code           = None #Code, 8 bits
         self.checksum       = None #Checksum, 16 bits
-        self.various        = None #various uses, 32 bits
+        # self.various        = None #various uses, 32 bits
         self.verbose        = None
         # self.ip4header      = None #IPv4 header
         # self.datagrambytes  = None #first 64 bits of the datagram
@@ -231,33 +359,95 @@ class icmp4header:
         counter += (8//4)
         icmph.code = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
-        icmph.checksum = (hexbuf[counter: counter + (16//4)])
+        icmph.checksum = hex(int(hexbuf[counter: counter + (16//4)], base=16))
         counter += (16//4)
-        icmph.various = "Unknown"
-        # print(icmph.type, icmph.code, icmph.checksum)
         match icmph.type:
             case 0:
-                icmph.verbose = "ICMP Echo Reply"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Echo Reply\n"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
             case 3:
-                icmph.verbose = "ICMP Destination Unreachable"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Destination Unreachable\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Net is unreachable\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Host is unreachable\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Protocol is unreachable\n"
+                    case 3:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Port is unreachable\n"
+                    case 4:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Fragmentation is needed and \'Don\'t Fragment\' (DF) was set\n"
+                    case 5:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Source route failed\n"
+                    case 6:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination network is unknown\n"
+                    case 7:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination host is unknown\n"
+                    case 8:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Source host is isolated\n"
+                    case 9:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication with destination network is administratively prohibited\n"
+                    case 10:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication with destination host is administratively prohibited\n"
+                    case 11:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination network is unreachable for type of service\n"
+                    case 12:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination host is unreachable for type of service\n"
+                    case 13:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication is administratively prohibited\n"
+                    case 14:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Host precedence violation\n"
+                    case 15:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Precedence cutoff is in effect\n"
             case 4:
-                icmph.verbose = "ICMP Source Quench"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Source Quench\n"
             case 5:
-                icmph.verbose = "ICMP Redirect"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Redirect\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the network (or subnet)\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the host\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the type of service and network\n"
+                    case 3:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the type of service and host\n"
             case 8:
-                icmph.verbose = "ICMP Echo"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Echo\n"
+            case 9:
+                icmph.verbose = f"ICMP Type {icmph.type}: Router Advertisement\n"
+            case 10:
+                icmph.verbose = f"ICMP Type {icmph.type}: Router Selection\n"
             case 11:
-                icmph.verbose = "ICMP Time Exceeded"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Time Exceeded\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Time To Live (TTL) exceeded in transit\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Fragment reassembly time exceeded\n"
             case 12:
-                icmph.verbose = "ICMP Parameter Problem"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Parameter Problem\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Pointer indicates the error\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Missing a required option\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Bad length\n"
             case 13:
-                icmph.verbose = "ICMP Timestamp"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Timestamp\n"
             case 14:
-                icmph.verbose = "ICMP Timestamp Reply"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Timestamp Reply\n"
             case 15:
-                icmph.verbose = "ICMP Information Request"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Information Request\n"
             case 16:
-                icmph.verbose = "ICMP Information Reply"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Information Reply\n"
+            case 17:
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Address Mask Request\n"
+            case 18:
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Address Mask Reply\n"
+            case 30:
+                icmph.verbose = f"ICMP Type {icmph.type}: Traceroute\n"
         # if VERIFY_CHECKSUMS and udph.chksum != 0:
         #     if not iphdr: 
         #         eprint('call to udpheader.read() needs iphdr')
@@ -286,42 +476,148 @@ class icmp6header:
         counter += (8//4)
         icmp6h.code = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
-        icmp6h.checksum = (hexbuf[counter: counter + (16//4)])
+        icmp6h.checksum = hex(int(hexbuf[counter: counter + (16//4)], base=16))
         counter += (16//4)
         if icmp6h.type in range(0,128):
-            # print("ICMP6 error message")
             match icmp6h.type:
                 case 1:
-                    icmp6h.verbose = "Destination Unreachable" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                    icmp6h.verbose = "ICMPv6 Error Message: Destination Unreachable\n" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No route to destination\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Communication with destination administratively prohibited\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Beyond scope of source address\n"
+                        case 3:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Address unreachable\n"
+                        case 4:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Port unreachable\n"
+                        case 5:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Source address failed ingress/egress policy\n"
+                        case 6:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Reject route to destination\n"
+                        case 7:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Error in Source Routing Header\n"
+                        case 8:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Headers too long\n"
                 case 2:
-                    icmp6h.verbose = "Packet Too Big"
+                    icmp6h.verbose = "ICMPv6 Error Message: Packet Too Big\n"
                 case 3:
-                    icmp6h.verbose = "Time Exceeded"
+                    icmp6h.verbose = "ICMPv6 Error Message: Time Exceeded\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Hop limit exceeded in transit\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Fragment reassembly ime exceeded\n"
                 case 4:
-                    icmp6h.verbose = "Parameter Problem"
+                    icmp6h.verbose = "ICMPv6 Error Message: Parameter Problem\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Erroneous header field encountered\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised \'Next Header\' type encountered\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised IPv6 option encountered\n"
+                        case 3:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: IPv6 First Fragment has incomplete IPv6 Header Chain\n"
+                        case 4:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: SR Upper-layer Header Error\n"
+                        case 5:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised \'Next Header\' type encountered by intermediate node\n"
+                        case 6:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Extension header too big\n"
+                        case 7:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Extension header chain too long\n"
+                        case 8:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Too many extension headers\n"
+                        case 9:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Too many options in extension header\n"
+                        case 10:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Option too big\n"
                 case other:
-                    icmp6h.verbose = "unknown or invalid error message: protocol " + str(icmp6h.type)
+                    icmp6h.verbose = f"ICMPv6 Error Message: unknown or invalid error message: protocol {icmp6h.type}\n"
 
         else:
-            # print("ICMP6 informational message")
             match icmp6h.type:
                 case 128:
-                    icmp6h.verbose = "Echo Request"
+                    icmp6h.verbose = "ICMPv6 Informational message: Echo Request\n"
                 case 129:
-                    icmp6h.verbose = "Echo Reply"
+                    icmp6h.verbose = "ICMPv6 Informational message: Echo Reply\n"
+                case 130:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Query\n"
+                case 131:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Report\n"
+                case 132:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Done\n"
                 case 133:
-                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Solicitation\n" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
                 case 134:
-                    icmp6h.verbose = "Router Advertisement"
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Advertisement\n"
                 case 135:
-                    icmp6h.verbose = "Neighbor Solicitation"
+                    icmp6h.verbose = "ICMPv6 Informational message: Neighbor Solicitation\n"
                 case 136:
-                    icmp6h.verbose = "Neighbor Advertisement"
+                    icmp6h.verbose = "ICMPv6 Informational message: Neighbor Advertisement\n"
                 case 137:
-                    icmp6h.verbose = "Redirect Message"
+                    icmp6h.verbose = "ICMPv6 Informational message: Redirect Message\n"
+                case 138:
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Renumbering\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Router Renumbering Command\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Router Renumbering Result\n"
+                        case 255:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Sequence Number Reset\n"
+                case 139:
+                    icmp6h.verbose = "ICMPv6 Informational message: ICMP Node Information Query\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains an IPv6 address which is the Subject of this Query\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains a name which is the Subject of this Query, or is empty (i.e. NOOP)\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains an IPv4 address which is the Subject of this Query\n"
+                case 140:
+                    icmp6h.verbose = "ICMPv6 Informational message: ICMP Node Information Response\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: A successful reply. The \'Reply\' field may or may not be empty\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The Responder refuses to supply the answer. The \'Reply\' field will be empty.\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The Qtype of the Query is unknown to the Responder. The \'Reply\' field will be empty.\n"
+                case 151:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Advertisement\n"
+                case 152:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Solicitation\n"
+                case 153:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Termination\n"
+                case 160:
+                    icmp6h.verbose = "ICMPv6 Informational message: Extended Echo Request\n"
+                    if icmp6h.code == 0:
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No error\n"
+                    elif icmp6h.code in range(1,256):
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unassigned\n"
+                case 161:
+                    icmp6h.verbose = "ICMPv6 Informational message: Extended Echo Reply\n"
+                    if icmp6h.code in range(0,5):
+                        match icmp6h.code:
+                            case 0:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No error\n"
+                            case 1:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Malformed Query\n"
+                            case 2:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No Succh Interface\n"
+                            case 3:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No Such Table Entry\n"
+                            case 4:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Multiple Interfaces Satisfy Query\n"
+                    elif icmp6h.code in range(5,256):
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unassigned\n"
 
                 case other:
-                    icmp6h.verbose = "unknown or invalid informational message: protocol " + str(icmp6h.type)
+                    icmp6h.verbose = f"ICMPv6 Informational message: unknown or invalid informational message: protocol {icmp6h.type}\n"
         return icmp6h
 
 class udpheader:
@@ -330,21 +626,108 @@ class udpheader:
         self.dstport = None
         self.length  = None
         self.chksum  = None
+        self.verbose = None
         
     # We need the iphdr to verify the checksum
     @staticmethod
     def read(buf, bufstart, iphdr=None):
         udph = udpheader()
         (udph.srcport, udph.dstport, udph.length, udph.chksum) = struct.unpack_from('>HHHH', buf, bufstart)
-        if VERIFY_CHECKSUMS and udph.chksum != 0:
-            if not iphdr: 
-                eprint('call to udpheader.read() needs iphdr')
-                return None
-            calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
-            if calc_chksum != 0xffff: 
-                eprint('packet with bad UDP checksum received')
-                return None
+        udph.srcport = int(udph.srcport)
+        udph.dstport = int(udph.dstport)
+        udph.length = int(udph.length)
+        udph.chksum = hex(udph.chksum)
+        # if VERIFY_CHECKSUMS and udph.chksum != 0:
+        #     if not iphdr: 
+        #         eprint('call to udpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, UDP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad UDP checksum received')
+        #         return None
+        udph.get_verbose()
         return udph
+
+    def get_verbose(self):
+        match self.srcport:
+            case 20:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose = f"Source Port {self.srcport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose = f"Source Port {self.srcport} : Telnet Protocol\n"
+            case 25:
+                self.verbose = f"Source Port {self.srcport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose = f"Source Port {self.srcport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose = f"Source Port {self.srcport} : Gopher Protocol\n"
+            case 80:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose = f"Source Port {self.srcport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose = f"Source Port {self.srcport} not well-known\n"
+        
+        match self.dstport:
+            case 20:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose += f"Destination Port {self.dstport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose += f"Destination Port {self.dstport} : Telnet Protocol\n"
+            case 25:
+                self.verbose += f"Destination Port {self.dstport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose += f"Destination Port {self.dstport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose += f"Destination Port {self.dstport} : Gopher Protocol\n"
+            case 80:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose += f"Destination Port {self.dstport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose += f"Destination Port {self.dstport} not well-known\n"
  
     # Does NOT do the checksum, because we don't really know the ip header source address
     def write_nochk(self, buf : bytearray, bufstart):
@@ -369,23 +752,29 @@ class tcpheader:
         self.winsize  = None
         self.chksum   = None
         self.urgent   = None
+        self.verbose  = None
         
         
     # We need the iphdr to verify the checksum
     @staticmethod
     def read(buf : bytes, bufstart, iphdr=None):	# bufstart is start of tcp header   
-        if VERIFY_CHECKSUMS:  
-            if not iphdr: 
-                eprint('call to tcpheader.read() needs iphdr')
-                return None
-            calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, TCP_PROTO, len(buf)-bufstart)
-            if calc_chksum != 0xffff: 
-                eprint('packet with bad TCP checksum received')
-                return  None
+        # if VERIFY_CHECKSUMS:  
+        #     if not iphdr: 
+        #         eprint('call to tcpheader.read() needs iphdr')
+        #         return None
+        #     calc_chksum = transportheader_getchk(buf, bufstart, iphdr.srcaddrb, iphdr.dstaddrb, TCP_PROTO, len(buf)-bufstart)
+        #     if calc_chksum != 0xffff: 
+        #         eprint('packet with bad TCP checksum received')
+        #         return  None
         tcph = tcpheader()
         # absacknum in the following may be garbage
         (tcph.srcport, tcph.dstport, tcph.absseqnum, tcph.absacknum, flagword, tcph.winsize, tcph.chksum, tcph.urgent) = struct.unpack_from('!HHIIHHHH', buf, bufstart)
-        tcph.tcphdrlen = (flagword >> 12)*4
+        tcph.srcport = int(tcph.srcport)
+        tcph.dstport = int(tcph.dstport)
+        tcph.absseqnum = int(tcph.absseqnum)
+        tcph.absacknum = int(tcph.absacknum)
+        tcph.tcphdrlen = int((flagword >> 12)*4)
+        tcph.reserved = (bin(0)[2:]).zfill(4) ##set to 0; can't be used because software would likely drop segments with tcph.reserved != 0 as an error
         flags = (bin(flagword & TCPFLAGMASK)[2:]).zfill(8)
         tcph.cwr = int(flags[0])
         tcph.ece = int(flags[1])
@@ -395,8 +784,92 @@ class tcpheader:
         tcph.rst = int(flags[5])
         tcph.syn = int(flags[6])
         tcph.fin = int(flags[7])
-        tcph.reserved = (bin(0)[2:]).zfill(4) ##set to 0; can't be used because software would likely drop segments with tcph.reserved != 0 as an error
+        tcph.winsize = int(tcph.winsize)
+        tcph.chksum = hex(tcph.chksum)
+        tcph.urgent = int(tcph.urgent)
+        tcph.get_verbose()
         return tcph
+    
+    def get_verbose(self):
+        match self.srcport:
+            case 20:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose = f"Source Port {self.srcport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose = f"Source Port {self.srcport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose = f"Source Port {self.srcport} : Telnet Protocol\n"
+            case 25:
+                self.verbose = f"Source Port {self.srcport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose = f"Source Port {self.srcport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose = f"Source Port {self.srcport} : Gopher Protocol\n"
+            case 80:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose = f"Source Port {self.srcport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose = f"Source Port {self.srcport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose = f"Source Port {self.srcport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose = f"Source Port {self.srcport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose = f"Source Port {self.srcport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose = f"Source Port {self.srcport} not well-known\n"
+        
+        match self.dstport:
+            case 20:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 21:
+                self.verbose += f"Destination Port {self.dstport} : File Transfer Protocol (FTP)\n"
+            case 22:
+                self.verbose += f"Destination Port {self.dstport} : Secure Shell (SSH)\n"
+            case 23:
+                self.verbose += f"Destination Port {self.dstport} : Telnet Protocol\n"
+            case 25:
+                self.verbose += f"Destination Port {self.dstport} : Simple Mail Transfer Protocol (SMTP)\n"
+            case 53:
+                self.verbose += f"Destination Port {self.dstport} : Domain Name System Protocol (DNS)\n"
+            case 67:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 68:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP)\n"
+            case 70:
+                self.verbose += f"Destination Port {self.dstport} : Gopher Protocol\n"
+            case 80:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol (HTTP)\n"
+            case 109:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 2 (POP2)\n"
+            case 110:
+                self.verbose += f"Destination Port {self.dstport} : Post Office Protocol version 3 (POP3)\n"
+            case 115:
+                self.verbose += f"Destination Port {self.dstport} : Simple File Transfer Protocol (SFTP)\n"
+            case 179:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Protocol (BGP)\n"
+            case 264:
+                self.verbose += f"Destination Port {self.dstport} : Border Gateway Multicast Protocol (BGMP)\n"
+            case 546:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 client\n"
+            case 547:
+                self.verbose += f"Destination Port {self.dstport} : Dynamic Host Configuration Protocol (DHCP) version 6 server\n"
+            case 443:
+                self.verbose += f"Destination Port {self.dstport} : Hyper-Text Transfer Protocol Secure (HTTPS)\n"
+            case other:
+                self.verbose += f"Destination Port {self.dstport} not well-known\n"
         
     # needs srport, dstport, absseqnum, absacknum, flagword, winsize
     def write(self, buf : bytearray, bufstart, iphdr: ip4header):
