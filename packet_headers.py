@@ -279,7 +279,7 @@ class ip6header:
         ##RECURSIVELY FIND EXTENSION HEADERS
         for header,offset in next_headers:
             if header == 0: ## Hop-by-Hop Options Header
-                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
+                next_headers.append(((hexbuf[counter: counter + (8//4)]), counter//2 + 8)) ##tuple containing header type immediately following the Hop-by-hop options header (same values as for Ipv4), and the offset into the IPv6 header in bytes
                 counter += (8 + (int(hexbuf[counter: counter + (8//4)], base=16) * 8))//4
         ip6h.extheaders = next_headers
         ip6h.get_verbose()
@@ -359,33 +359,95 @@ class icmp4header:
         counter += (8//4)
         icmph.code = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
-        icmph.checksum = (hexbuf[counter: counter + (16//4)])
+        icmph.checksum = hex(int(hexbuf[counter: counter + (16//4)], base=16))
         counter += (16//4)
-        # icmph.various = "Unknown"
-        # print(icmph.type, icmph.code, icmph.checksum)
         match icmph.type:
             case 0:
-                icmph.verbose = "ICMP Echo Reply"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Echo Reply\n"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
             case 3:
-                icmph.verbose = "ICMP Destination Unreachable"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Destination Unreachable\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Net is unreachable\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Host is unreachable\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Protocol is unreachable\n"
+                    case 3:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Port is unreachable\n"
+                    case 4:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Fragmentation is needed and \'Don\'t Fragment\' (DF) was set\n"
+                    case 5:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Source route failed\n"
+                    case 6:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination network is unknown\n"
+                    case 7:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination host is unknown\n"
+                    case 8:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Source host is isolated\n"
+                    case 9:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication with destination network is administratively prohibited\n"
+                    case 10:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication with destination host is administratively prohibited\n"
+                    case 11:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination network is unreachable for type of service\n"
+                    case 12:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Destination host is unreachable for type of service\n"
+                    case 13:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Communication is administratively prohibited\n"
+                    case 14:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Host precedence violation\n"
+                    case 15:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Precedence cutoff is in effect\n"
             case 4:
-                icmph.verbose = "ICMP Source Quench"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Source Quench\n"
             case 5:
-                icmph.verbose = "ICMP Redirect"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Redirect\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the network (or subnet)\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the host\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the type of service and network\n"
+                    case 3:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the type of service and host\n"
             case 8:
-                icmph.verbose = "ICMP Echo"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Echo\n"
+            case 9:
+                icmph.verbose = f"ICMP Type {icmph.type}: Router Advertisement\n"
+            case 10:
+                icmph.verbose = f"ICMP Type {icmph.type}: Router Selection\n"
             case 11:
-                icmph.verbose = "ICMP Time Exceeded"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Time Exceeded\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Time To Live (TTL) exceeded in transit\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Fragment reassembly time exceeded\n"
             case 12:
-                icmph.verbose = "ICMP Parameter Problem"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Parameter Problem\n"
+                match icmph.code:
+                    case 0:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Pointer indicates the error\n"
+                    case 1:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Missing a required option\n"
+                    case 2:
+                        icmph.verbose += f"ICMP Code {icmph.code}: Bad length\n"
             case 13:
-                icmph.verbose = "ICMP Timestamp"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Timestamp\n"
             case 14:
-                icmph.verbose = "ICMP Timestamp Reply"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Timestamp Reply\n"
             case 15:
-                icmph.verbose = "ICMP Information Request"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Information Request\n"
             case 16:
-                icmph.verbose = "ICMP Information Reply"
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Information Reply\n"
+            case 17:
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Address Mask Request\n"
+            case 18:
+                icmph.verbose = f"ICMP Type {icmph.type}: ICMP Address Mask Reply\n"
+            case 30:
+                icmph.verbose = f"ICMP Type {icmph.type}: Traceroute\n"
         # if VERIFY_CHECKSUMS and udph.chksum != 0:
         #     if not iphdr: 
         #         eprint('call to udpheader.read() needs iphdr')
@@ -414,42 +476,148 @@ class icmp6header:
         counter += (8//4)
         icmp6h.code = int(hexbuf[counter: counter + (8//4)], base=16)
         counter += (8//4)
-        icmp6h.checksum = (hexbuf[counter: counter + (16//4)])
+        icmp6h.checksum = hex(int(hexbuf[counter: counter + (16//4)], base=16))
         counter += (16//4)
         if icmp6h.type in range(0,128):
-            # print("ICMP6 error message")
             match icmp6h.type:
                 case 1:
-                    icmp6h.verbose = "Destination Unreachable" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                    icmp6h.verbose = "ICMPv6 Error Message: Destination Unreachable\n" ###rfc-editor.org/rfc/rfc443.html#page-8 16 March 2024
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No route to destination\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Communication with destination administratively prohibited\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Beyond scope of source address\n"
+                        case 3:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Address unreachable\n"
+                        case 4:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Port unreachable\n"
+                        case 5:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Source address failed ingress/egress policy\n"
+                        case 6:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Reject route to destination\n"
+                        case 7:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Error in Source Routing Header\n"
+                        case 8:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Headers too long\n"
                 case 2:
-                    icmp6h.verbose = "Packet Too Big"
+                    icmp6h.verbose = "ICMPv6 Error Message: Packet Too Big\n"
                 case 3:
-                    icmp6h.verbose = "Time Exceeded"
+                    icmp6h.verbose = "ICMPv6 Error Message: Time Exceeded\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Hop limit exceeded in transit\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Fragment reassembly ime exceeded\n"
                 case 4:
-                    icmp6h.verbose = "Parameter Problem"
+                    icmp6h.verbose = "ICMPv6 Error Message: Parameter Problem\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Erroneous header field encountered\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised \'Next Header\' type encountered\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised IPv6 option encountered\n"
+                        case 3:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: IPv6 First Fragment has incomplete IPv6 Header Chain\n"
+                        case 4:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: SR Upper-layer Header Error\n"
+                        case 5:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unrecognised \'Next Header\' type encountered by intermediate node\n"
+                        case 6:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Extension header too big\n"
+                        case 7:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Extension header chain too long\n"
+                        case 8:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Too many extension headers\n"
+                        case 9:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Too many options in extension header\n"
+                        case 10:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Option too big\n"
                 case other:
-                    icmp6h.verbose = "unknown or invalid error message: protocol " + str(icmp6h.type)
+                    icmp6h.verbose = f"ICMPv6 Error Message: unknown or invalid error message: protocol {icmp6h.type}\n"
 
         else:
-            # print("ICMP6 informational message")
             match icmp6h.type:
                 case 128:
-                    icmp6h.verbose = "Echo Request"
+                    icmp6h.verbose = "ICMPv6 Informational message: Echo Request\n"
                 case 129:
-                    icmp6h.verbose = "Echo Reply"
+                    icmp6h.verbose = "ICMPv6 Informational message: Echo Reply\n"
+                case 130:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Query\n"
+                case 131:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Report\n"
+                case 132:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Listener Done\n"
                 case 133:
-                    icmp6h.verbose = "Router Solicitation" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Solicitation\n" ###rfc-editor.org/rfc/rfc2461#page-17 16 March 2024
                 case 134:
-                    icmp6h.verbose = "Router Advertisement"
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Advertisement\n"
                 case 135:
-                    icmp6h.verbose = "Neighbor Solicitation"
+                    icmp6h.verbose = "ICMPv6 Informational message: Neighbor Solicitation\n"
                 case 136:
-                    icmp6h.verbose = "Neighbor Advertisement"
+                    icmp6h.verbose = "ICMPv6 Informational message: Neighbor Advertisement\n"
                 case 137:
-                    icmp6h.verbose = "Redirect Message"
+                    icmp6h.verbose = "ICMPv6 Informational message: Redirect Message\n"
+                case 138:
+                    icmp6h.verbose = "ICMPv6 Informational message: Router Renumbering\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Router Renumbering Command\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Router Renumbering Result\n"
+                        case 255:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Sequence Number Reset\n"
+                case 139:
+                    icmp6h.verbose = "ICMPv6 Informational message: ICMP Node Information Query\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains an IPv6 address which is the Subject of this Query\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains a name which is the Subject of this Query, or is empty (i.e. NOOP)\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The \'Data\' field contains an IPv4 address which is the Subject of this Query\n"
+                case 140:
+                    icmp6h.verbose = "ICMPv6 Informational message: ICMP Node Information Response\n"
+                    match icmp6h.code:
+                        case 0:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: A successful reply. The \'Reply\' field may or may not be empty\n"
+                        case 1:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The Responder refuses to supply the answer. The \'Reply\' field will be empty.\n"
+                        case 2:
+                            icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: The Qtype of the Query is unknown to the Responder. The \'Reply\' field will be empty.\n"
+                case 151:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Advertisement\n"
+                case 152:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Solicitation\n"
+                case 153:
+                    icmp6h.verbose = "ICMPv6 Informational message: Multicast Router Termination\n"
+                case 160:
+                    icmp6h.verbose = "ICMPv6 Informational message: Extended Echo Request\n"
+                    if icmp6h.code == 0:
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No error\n"
+                    elif icmp6h.code in range(1,256):
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unassigned\n"
+                case 161:
+                    icmp6h.verbose = "ICMPv6 Informational message: Extended Echo Reply\n"
+                    if icmp6h.code in range(0,5):
+                        match icmp6h.code:
+                            case 0:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No error\n"
+                            case 1:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Malformed Query\n"
+                            case 2:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No Succh Interface\n"
+                            case 3:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: No Such Table Entry\n"
+                            case 4:
+                                icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Multiple Interfaces Satisfy Query\n"
+                    elif icmp6h.code in range(5,256):
+                        icmp6h.verbose += f"ICMPv6 Code {icmp6h.code}: Unassigned\n"
 
                 case other:
-                    icmp6h.verbose = "unknown or invalid informational message: protocol " + str(icmp6h.type)
+                    icmp6h.verbose = f"ICMPv6 Informational message: unknown or invalid informational message: protocol {icmp6h.type}\n"
         return icmp6h
 
 class udpheader:

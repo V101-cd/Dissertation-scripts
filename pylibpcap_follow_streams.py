@@ -82,7 +82,7 @@ class packet:
                     # dstip = socket.inet_ntop(socket.AF_INET6, self.ip6h.dstaddrb)
                     self.ip6_key = (self.ip6h.flowlabel, self.ip6h.srcaddrb, self.ip6h.dstaddrb)
                 
-                    if (self.ip6h.nextheader == hex(ICMPV6_PROTO)[2:]):
+                    if (self.ip6h.nextheader == hex(ICMPV6_PROTO)):
                         self.icmp6h = self.get_header(self.packet_buff, ETHHDRLEN + 40, icmp6header)
                         if self.icmp6h != None:
                             self.protocols["icmp6"] = self.icmp6h
@@ -94,12 +94,11 @@ class packet:
                             self.protocols["icmp6"] = self.icmp6h
                             self.icmp6_key = (self.icmp6h.type, self.icmp6h.code, self.icmp6h.verbose)
 
-                    if (self.ip6h.nextheader == hex(TCP_PROTO)[2:]):
+                    if (self.ip6h.nextheader == hex(TCP_PROTO)):
                         self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + 40, tcpheader)
                         if self.tcph != None:
                             self.protocols["tcp"] = self.tcph
                             self.tcp_key = (self.ip6h.srcaddrb, self.tcph.srcport, self.ip6h.dstaddrb, self.tcph.dstport)
-
 
                     if (self.ip6h.extheaders != [] and (self.ip6h.extheaders[-1][0] == hex(TCP_PROTO)[2:])): ##extract value from tuple
                         self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + (self.ip6h.extheaders[-1][1]), tcpheader)
@@ -107,7 +106,7 @@ class packet:
                             self.protocols["tcp"] = self.tcph
                             self.tcp_key = (self.ip6h.srcaddrb, self.tcph.srcport, self.ip6h.dstaddrb, self.tcph.dstport)
 
-                    if (self.ip6h.nextheader == hex(UDP_PROTO)[2:]):
+                    if (self.ip6h.nextheader == hex(UDP_PROTO)):
                         self.udph = self.get_header(self.packet_buff, ETHHDRLEN + 40, udpheader)
                         if self.udph != None:
                             self.protocols["udp"] = self.udph

@@ -40,43 +40,39 @@ class FrameWindow(QScrollArea):
         self.setWidgetResizable(True)
 
     
-    def add_frame(self, frame, frame_name):
-        self.layout.addWidget(QLabel(frame_name))
-        self.layout.addWidget(frame)
+    # def add_frame(self, frame, frame_name):
+    #     self.layout.addWidget(QLabel(frame_name))
+    #     self.layout.addWidget(frame)
     
-    def add_verbose(self, message, verbose_type):
-        self.layout.addWidget(QLabel(verbose_type + ": " + message))
+    # def add_verbose(self, message, verbose_type):
+    #     self.layout.addWidget(QLabel(verbose_type + ": " + message))
 
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
-        # self.layout.addWidget(diagram_label)
         self.layout.addLayout(diagram_label)
 
     def add_verbose_label(self, message):
-        self.layout.addWidget(QLabel(message))
+        verbose_label = QLabel(message)
+        verbose_label.setWordWrap(True)
+        self.layout.addWidget(verbose_label)
 
-class draw_frame():
-    def __init__(self, num_cols, num_rows, headers=[], bits=True):
-        super().__init__()
-        self.num_cols = num_cols
-        self.num_rows = num_rows+1
-        self.headers = headers
-        self.bits = bits
-        if self.bits == True:
-            self.datatype = "Bits"
-        else:
-            self.datatype = "Bytes"
+# class draw_frame():
+#     def __init__(self, num_cols, num_rows, headers=[], bits=True):
+#         super().__init__()
+#         self.num_cols = num_cols
+#         self.num_rows = num_rows+1
+#         self.headers = headers
+#         self.bits = bits
+#         if self.bits == True:
+#             self.datatype = "Bits"
+#         else:
+#             self.datatype = "Bytes"
         
-        self.frame = QTableWidget(self.num_rows, self.num_cols)
-        # self.frame.setWordWrap(True)
-        self.frame.setHorizontalHeaderLabels(self.headers)
-        self.frame.setVerticalHeaderLabels([self.datatype, ""])
-        self.frame.adjustSize()
-        
-        ##TODO: make the cells uneditable; make the cell sizes dynamic based on size of window etc.
-        # self.frame.wordWrap()
-        # self.frame.resizeColumnsToContents()
-        # self.frame.resizeRowsToContents()
+#         self.frame = QTableWidget(self.num_rows, self.num_cols)
+#         # self.frame.setWordWrap(True)
+#         self.frame.setHorizontalHeaderLabels(self.headers)
+#         self.frame.setVerticalHeaderLabels([self.datatype, ""])
+#         self.frame.adjustSize()
 
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
@@ -335,20 +331,42 @@ class header_diagram():
             self.urgent_pointer_label.setParent(self.diagram_label)
             self.urgent_pointer_label.move(QPoint(545,241))
 
+        if (header_type == "icmp4"):
+            self.diagram_label.setFixedSize(775,150)
+            self.type_label = QLabel(str(self.field_values["type"]))
+            self.type_label.setParent(self.diagram_label)
+            self.type_label.move(QPoint(147,69))
+
+            self.code_label = QLabel(str(self.field_values["code"]))
+            self.code_label.setParent(self.diagram_label)
+            self.code_label.move(QPoint(315,69))
+
+            self.checksum_label = QLabel(str(self.field_values["checksum"]))
+            self.checksum_label.setParent(self.diagram_label)
+            self.checksum_label.move(QPoint(514,69))
+
+        if (header_type == "icmp6"):
+            self.diagram_label.setFixedSize(775,150)
+            self.type_label = QLabel(str(self.field_values["type"]))
+            self.type_label.setParent(self.diagram_label)
+            self.type_label.move(QPoint(147,69))
+
+            self.code_label = QLabel(str(self.field_values["code"]))
+            self.code_label.setParent(self.diagram_label)
+            self.code_label.move(QPoint(315,69))
+
+            self.checksum_label = QLabel(str(self.field_values["checksum"]))
+            self.checksum_label.setParent(self.diagram_label)
+            self.checksum_label.move(QPoint(514,69))
+
 
     def get_diagram_label(self):
-        # return self.diagram_label
         return self.layout
     
     def get_verbose_label(self):
         if self.field_values["verbose"] != None:
             return self.field_values["verbose"]
         return None
-    
-    # def resizeEvent(self, event):
-    #     scaled_diagram = self.diagram.scaled(self.width(), self.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-    #     self.diagram_label.setPixmap(scaled_diagram)
-    #     self.update()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -360,11 +378,9 @@ class MainWindow(QMainWindow):
         pcap_loader_layout = QHBoxLayout()
         packet_layer_button_layout = QHBoxLayout()
         pcap_loading_status_layout = QHBoxLayout()
-        # self.stacklayout = QStackedLayout()
 
         pagelayout.addLayout(pcap_loader_layout)
         pagelayout.addLayout(packet_layer_button_layout)
-        # pagelayout.addLayout(self.stacklayout)
 
         pcap_ldr_btn = QPushButton("Import PCAP files")
         pcap_loader_layout.addWidget(pcap_ldr_btn)
@@ -379,10 +395,7 @@ class MainWindow(QMainWindow):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidgetResizable(True)
         pagelayout.addWidget(self.scroll_area)
-        
-        # packet_info = ['fc:44:82:39:bc:1e', 'dc:a6:32:66:cd:5a', '0x800', b'E\x00\x009\xe4\x1b@\x00\x80\x11\xa4\xe5\xc0\xa8\x04\x05\xd8:\xd4\xca\xc2&\x01\xbb\x00%\xfe@@\xe9h\xef\xf7\xd3\xe4~>\xd9F\xf3\xa7v\x97U\xf0^E\x1e\xc1\x8f\xc7\x96\xd0\xe3\x08\x82\xe9'] ##dpkt identifies this length as 57 bytes (well, 57 something)
-        # udp_packet_info = [56375, 443, 42, 61632, b"]\xfac\xc5\ns\xbb\xee-\x18\xea\x07\xab\xec\xc8\xdb\xaf\xea\x8bv\xd55?\xec\x1f\x13\x99\xa6Q'\xd0\xe7\xe9\xf9"]
-        # packet_info = "<bound method Ethernet.__bytes__ of Ethernet(dst=b'\xfcD\x829\xbc\x1e', src=b'\xdc\xa62f\xcdZ', data=IP(tos=128, len=53, df=1, ttl=57, p=17, sum=14722, src=b'\x8e\xfa\xb4\x0e', dst=b'\xc0\xa8\x04\x05', opts=b'', data=UDP(sport=443, dport=51865, ulen=33, sum=47964, data=b'ZU\x1e\xa5\x9b\xfa\x84m\xcb\xb41]\xf8\xde\xdd\xdb\xd2\x8f\xda(`\r\x0fN\xe7')))>"
+
         # self.eth_btn = QPushButton("Ethernet")
         # self.eth_btn.hide()
         # self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
@@ -395,12 +408,6 @@ class MainWindow(QMainWindow):
         # self.udp_btn.hide()
         # self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
         # packet_layer_button_layout.addWidget(self.udp_btn)
-
-        # if packet_button in self.pcap_row_buttons .connect(lambda: self.packet_btn_clicked(i, pcap_list[i]))
-
-        # label_udp = QLabel()
-        # label_udp.setStyleSheet('QLabel{background-color:none}')
-        # self.stacklayout.addWidget(label_udp)
 
         # btn = QPushButton("blue")
         # btn.pressed.connect(self.activate_tab_3)
@@ -440,10 +447,8 @@ class MainWindow(QMainWindow):
         pcap_rows_widget = QWidget()
         pcap_rows = QVBoxLayout()
         pcap_len = len(self.pcap_dicts)
-        # self.pcap_row_buttons = []
         for i in range(pcap_len):
             packet_btn = QPushButton("Packet " + str(i+1))
-            # self.pcap_row_buttons.append(QPushButton("Packet " + str(i+1)))
             pcap_rows.addWidget(packet_btn)
             packet_btn.clicked.connect(lambda: self.packet_btn_clicked())
             print(i)
@@ -451,19 +456,6 @@ class MainWindow(QMainWindow):
         pcap_rows_widget.setLayout(pcap_rows)
         print("Setting scroll_area")
         return pcap_rows_widget
-        # pcap_rows_widget = QWidget()
-        # pcap_rows = QVBoxLayout()
-        # pcap_len = len(pcap_list)
-        # for i in range(pcap_len):
-        #     packet_btn = QPushButton("Packet " + str(i+1))
-        #     self.packet_button_dict[packet_btn] = (i+1, pcap_list[i+1])
-        #     pcap_rows.addWidget(packet_btn)
-        #     packet_btn.clicked.connect(lambda: self.packet_btn_clicked(self.packet_button_dict[packet_btn.text()]))
-        #     print(i)
-        # print("Label generation completed")
-        # pcap_rows_widget.setLayout(pcap_rows)
-        # print("Setting scroll_area")
-        # return pcap_rows_widget
 
     def clear_layout_view(self):
         # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
@@ -472,11 +464,7 @@ class MainWindow(QMainWindow):
         self.scroll_area.setWidget(QWidget())
         
     def packet_btn_clicked(self):
-        # packet_num = packet_dictionary_tuple[0]
-        # packet_headers = packet_dictionary_tuple[1]
         sender = self.sender()
-        # self.eth_btn.show()
-        # self.udp_btn.show()
         packet_num = sender.text().split()[-1]
         packet_headers = self.pcap_dicts[int(packet_num)]
         print(packet_headers)
@@ -510,10 +498,12 @@ class MainWindow(QMainWindow):
                 # self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised udp")
             if key == "icmp4":
-                self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
                 print("visualised icmpv4")
             if key == "icmp6":
-                self.visualise_header(packet_header_attributes[key], "ICMPv6", [8,8,16], True, packet_header_attributes[key].keys())
+                self.view_header_diagram(key, packet_header_attributes[key])
+                # self.visualise_header(packet_header_attributes[key], "ICMPv6", [8,8,16], True, packet_header_attributes[key].keys())
                 print("visualised icmpv6")
 
         self.header_window.show()
@@ -576,30 +566,43 @@ class MainWindow(QMainWindow):
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
+        if header_type == "icmp4":
+            diagram = header_diagram("./icmp-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "ICMPv4")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
+        if header_type == "icmp6":
+            print("Header_type == icmp6")
+            diagram = header_diagram("./icmp-header.png", header_type, field_values)
+            self.header_window.add_diagram_label(diagram.get_diagram_label(), "ICMPv6")
+            verbose_label = diagram.get_verbose_label()
+            if verbose_label != None:
+                self.header_window.add_verbose_label(verbose_label)
 
-    def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
-        if row_headers == []:
-            row_headers = packet_info.keys()
-        row_headers = list(row_headers)
-        print
-        if "verbose" in packet_info.keys():
-            verbose_list.append(packet_info["verbose"])
-            print("verbose in keys")
-            cols = len(packet_info.keys()) - 1
-        else:
-            cols = len(packet_info.keys())
-        rows = 1
-        frame = draw_frame(cols, rows, row_headers, bits=bits_true)
+    # def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
+    #     if row_headers == []:
+    #         row_headers = packet_info.keys()
+    #     row_headers = list(row_headers)
+    #     print
+    #     if "verbose" in packet_info.keys():
+    #         verbose_list.append(packet_info["verbose"])
+    #         print("verbose in keys")
+    #         cols = len(packet_info.keys()) - 1
+    #     else:
+    #         cols = len(packet_info.keys())
+    #     rows = 1
+    #     frame = draw_frame(cols, rows, row_headers, bits=bits_true)
         
-        for i in range(cols):
-            frame.frame.setItem(0,i,QTableWidgetItem(str(field_sizes[i])))
-            frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[list(packet_info.keys())[i]])))
-        self.header_window.add_frame(frame.frame, header_type)
-        if verbose_list != []:
-            for message in verbose_list:
-                self.header_window.add_verbose(message, header_type + " Verbose")
-                verbose_list.remove(message)
-        self.header_window.resize(565,280)
+    #     for i in range(cols):
+    #         frame.frame.setItem(0,i,QTableWidgetItem(str(field_sizes[i])))
+    #         frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[list(packet_info.keys())[i]])))
+    #     self.header_window.add_frame(frame.frame, header_type)
+    #     if verbose_list != []:
+    #         for message in verbose_list:
+    #             self.header_window.add_verbose(message, header_type + " Verbose")
+    #             verbose_list.remove(message)
+    #     self.header_window.resize(565,280)
 
 app = QApplication(sys.argv)
 
