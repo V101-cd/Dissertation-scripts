@@ -63,7 +63,22 @@ class packet:
                             self.icmp4h = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, icmp4header)
                             if self.icmp4h != None:
                                 self.protocols["icmp4"] = self.icmp4h
-                                self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                if self.icmp4h.ip4header != None:
+                                    icmp_ipheader = self.get_header(self.icmp4h.ip4header, 0, ip4header)
+                                    if icmp_ipheader != None:
+                                        match icmp_ipheader.proto:
+                                            case 17:
+                                                icmp_udpheader = self.get_header(self.icmp4h.datagrambytes, 0, udpheader)
+                                                if icmp_udpheader != None:
+                                                    print("ICMP IP header: ", icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_udpheader.srcport, icmp_udpheader.dstport)
+                                                    self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_udpheader.srcport, icmp_udpheader.dstport, self.icmp4h.verbose)
+                                            case other:
+                                                self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                    else:
+                                        self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                else:
+                                    self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                
                         case 6:
                             self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, tcpheader)
                             if self.tcph != None:
@@ -183,6 +198,7 @@ class pcap:
                         key = single_packet.get_ip6_key()
                     if connection_name == "ICMP4":
                         key = single_packet.get_icmp4_key()
+
                     if connection_name == "ICMP6":
                         key = single_packet.get_icmp6_key()
                     if connection_name == "TCP":

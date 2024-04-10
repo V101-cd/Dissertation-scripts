@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPainter, QPixmap, QResizeEvent
 import pylibpcap_follow_streams as parser
-# import pylibpcap_follow_streams as parser
+import packet_headers as headers
 
 class FrameWindow(QScrollArea):
 
@@ -572,6 +572,14 @@ class MainWindow(QMainWindow):
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
+            if "ip4header" in field_values.keys():
+                icmp_ip4header = field_values["ip4header"]
+                if icmp_ip4header:
+                    icmp_ip4header_parsed = parser.packet(0,0,0,icmp_ip4header).get_header(icmp_ip4header,0,headers.ip4header)
+                    self.header_window.add_verbose_label(f"ICMP error thrown from IPv4 packet with source IP: {icmp_ip4header_parsed.srcaddrb}, destination IP: {icmp_ip4header_parsed.dstaddrb}\n")            
+            if "datagrambytes" in field_values.keys():
+                icmp_datagrambytes = field_values["datagrambytes"]
+
         if header_type == "icmp6":
             print("Header_type == icmp6")
             diagram = header_diagram("./icmp-header.png", header_type, field_values)
@@ -579,6 +587,7 @@ class MainWindow(QMainWindow):
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
+            
 
     # def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
     #     if row_headers == []:
