@@ -395,6 +395,8 @@ class MainWindow(QMainWindow):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidgetResizable(True)
         pagelayout.addWidget(self.scroll_area)
+        copyright = QLabel("© Vedika Parulkar, April 2024")
+        pagelayout.addWidget(copyright, alignment=Qt.AlignmentFlag.AlignRight)
 
         # self.eth_btn = QPushButton("Ethernet")
         # self.eth_btn.hide()
