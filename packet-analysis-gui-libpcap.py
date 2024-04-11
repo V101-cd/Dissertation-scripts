@@ -435,6 +435,9 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
             self.pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
+            self.pcap_connections = parser.pcap(selected_files[0]).get_connections()
+            self.pcap_ip4_datagrambytes = parser.pcap(selected_files[0]).get_ip4_datagrambytes()
+            self.inv_ip4_datagrambytes = {value:key for key,value in self.pcap_ip4_datagrambytes.items()}
             self.pcap_loading_status.setText("Displaying packets...")
             QApplication.processEvents()
             pcap_packets_widget = self.display_pcap_list()
@@ -476,36 +479,28 @@ class MainWindow(QMainWindow):
             print(key)
             packet_header_attributes[key] = vars(packet_headers[key])
             if key == "ethernet":
-                # self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
                 self.view_header_diagram(key, packet_header_attributes[key])
                 print("visualised eth")
             if key == "arp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
                 print("visualised arp")
             if key == "ip4":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
                 print("visualised ipv6")
             if key == "tcp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised tcp")
             if key == "udp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised udp")
             if key == "icmp4":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
                 print("visualised icmpv4")
             if key == "icmp6":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ICMPv6", [8,8,16], True, packet_header_attributes[key].keys())
                 print("visualised icmpv6")
 
         self.header_window.show()
@@ -575,12 +570,31 @@ class MainWindow(QMainWindow):
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
             if "ip4header" in field_values.keys():
+                icmp_verbose = ""
                 icmp_ip4header = field_values["ip4header"]
                 if icmp_ip4header:
                     icmp_ip4header_parsed = parser.packet(0,0,0,icmp_ip4header).get_header(icmp_ip4header,0,headers.ip4header)
-                    self.header_window.add_verbose_label(f"ICMP error thrown from IPv4 packet with source IP: {icmp_ip4header_parsed.srcaddrb}, destination IP: {icmp_ip4header_parsed.dstaddrb}\n")            
-            if "datagrambytes" in field_values.keys():
-                icmp_datagrambytes = field_values["datagrambytes"]
+                    if "datagrambytes" in field_values.keys():
+                        icmp_datagrambytes = field_values["datagrambytes"]
+                        if icmp_datagrambytes:
+                            icmp_datagrambytes_hex = (icmp_datagrambytes).hex()
+                            icmp_verbose += f"ICMP error thrown from IPv4 packet with datagram [first 64 bits]: {icmp_datagrambytes_hex}\n"
+                            if (icmp_ip4header_parsed.srcaddrb, icmp_ip4header_parsed.dstaddrb, icmp_datagrambytes_hex) in self.inv_ip4_datagrambytes:
+                                try:
+                                    icmp_verbose = f"ICMP error thrown from packet {self.inv_ip4_datagrambytes[(icmp_ip4header_parsed.srcaddrb, icmp_ip4header_parsed.dstaddrb, icmp_datagrambytes_hex)]}\n"
+                                except:
+                                    icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n\tdatagram [first 64 bits]: {icmp_datagrambytes_hex}\n"         
+                            else:
+                                icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n\tdatagram [first 64 bits]: {icmp_datagrambytes_hex}\n"       
+                        else:
+                            icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n"
+                    else:
+                        icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n"
+                else:
+                    icmp_verbose = f"ICMP error thrown from an unidentifiable IPv4 packet\n"
+            else:
+                icmp_verbose = f"ICMP error thrown from an unidentifiable IPv4 packet\n"
+            self.header_window.add_verbose_label(icmp_verbose)            
 
         if header_type == "icmp6":
             print("Header_type == icmp6")
@@ -589,31 +603,6 @@ class MainWindow(QMainWindow):
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
-            
-
-    # def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
-    #     if row_headers == []:
-    #         row_headers = packet_info.keys()
-    #     row_headers = list(row_headers)
-    #     print
-    #     if "verbose" in packet_info.keys():
-    #         verbose_list.append(packet_info["verbose"])
-    #         print("verbose in keys")
-    #         cols = len(packet_info.keys()) - 1
-    #     else:
-    #         cols = len(packet_info.keys())
-    #     rows = 1
-    #     frame = draw_frame(cols, rows, row_headers, bits=bits_true)
-        
-    #     for i in range(cols):
-    #         frame.frame.setItem(0,i,QTableWidgetItem(str(field_sizes[i])))
-    #         frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[list(packet_info.keys())[i]])))
-    #     self.header_window.add_frame(frame.frame, header_type)
-    #     if verbose_list != []:
-    #         for message in verbose_list:
-    #             self.header_window.add_verbose(message, header_type + " Verbose")
-    #             verbose_list.remove(message)
-    #     self.header_window.resize(565,280)
 
 app = QApplication(sys.argv)
 

@@ -167,6 +167,7 @@ class ip4header:
         self.chksum  = None
         self.srcaddrb= None
         self.dstaddrb= None
+        self.datagrambytes = None    # firsst 64 bits of data
         self.verbose = None
 
     # the following static method returns an ip4header object
@@ -177,7 +178,7 @@ class ip4header:
             return None
         ip4h = ip4header()
         ip4h.iphdrlen = (buf[bufstart] & 0x0f) * 4
-        if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip4h.iphdrlen) != 0xffff: return None 	# drop packet
+        if VERIFY_CHECKSUMS and IPchksum(buf, bufstart, ip4h.iphdrlen) != 0xffff: return None 	# drop packet
         a = struct.unpack_from('!BHHHBBH4s4s', buf, bufstart+1)
         (ip4h.dsfield, ip4h.length, ip4h.ident, fragword, ip4h.ttl, ip4h.proto, ip4h.chksum, ip4h.srcaddrb, ip4h.dstaddrb) = a
         # ip4h.fragflags = (fragword >> 13) & 0x7
@@ -190,6 +191,10 @@ class ip4header:
         ip4h.proto = int(ip4h.proto)
         ip4h.srcaddrb = realsocket.inet_ntoa(ip4h.srcaddrb)
         ip4h.dstaddrb = realsocket.inet_ntoa(ip4h.dstaddrb)
+        if ip4h.iphdrlen <= len(buf[bufstart:]):
+            ip4h.datagrambytes = bytearray(buf[bufstart + ip4h.iphdrlen: bufstart + ip4h.iphdrlen + 8]).hex()
+        else:
+            ip4h.datagrambytes = None
         ip4h.verbose = ip4h.get_verbose()
         return ip4h
         
