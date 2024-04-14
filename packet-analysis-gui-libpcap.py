@@ -197,7 +197,7 @@ class header_diagram():
 
         if header_type == "ip6":
             # self.diagram_label.setFixedSize(775,341)
-            self.diagram_label.setFixedSize(775,600)
+            self.diagram_label.setFixedSize(775,500)
 
             self.version_label = QLabel("6")
             self.version_label.setParent(self.diagram_label)
@@ -225,11 +225,11 @@ class header_diagram():
 
             self.src_ip_label = QLabel(str(self.field_values["srcaddrb"]))
             self.src_ip_label.setParent(self.diagram_label)
-            self.src_ip_label.move(QPoint(231,170))
+            self.src_ip_label.move(QPoint(231,220))
 
             self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
-            self.dst_ip_label.move(QPoint(231,260))
+            self.dst_ip_label.move(QPoint(231,400))
 
             if extension_header_diagram != None:
                 for i in range(len(self.field_values["extheaders"])):
