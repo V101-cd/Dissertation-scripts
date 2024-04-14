@@ -196,7 +196,8 @@ class header_diagram():
             self.dst_ip_label.move(QPoint(231,226))
 
         if header_type == "ip6":
-            self.diagram_label.setFixedSize(775,341)
+            # self.diagram_label.setFixedSize(775,341)
+            self.diagram_label.setFixedSize(775,600)
 
             self.version_label = QLabel("6")
             self.version_label.setParent(self.diagram_label)
@@ -540,14 +541,9 @@ class MainWindow(QMainWindow):
         if header_type == "ip6":
             if field_values["extheaders"] != []:
                 diagram = header_diagram("./ipv6-base-packet-header.png", header_type, field_values, "./ipv6-packet-extension-header.png")
-                # extension = True
             else:
                 diagram = header_diagram("./ipv6-packet-header-without-extensions.png", header_type, field_values)
-                # extension = None
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "IPv6")
-            # if extension != None:
-            #     for _ in range(len(field_values["extheaders"])):
-            #         self.header_window.add_diagram_label(extension.get_diagram_label(), "")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
@@ -597,7 +593,6 @@ class MainWindow(QMainWindow):
             self.header_window.add_verbose_label(icmp_verbose)            
 
         if header_type == "icmp6":
-            print("Header_type == icmp6")
             diagram = header_diagram("./icmp-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "ICMPv6")
             verbose_label = diagram.get_verbose_label()
