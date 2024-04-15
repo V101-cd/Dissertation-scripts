@@ -97,12 +97,14 @@ class StreamsWindow(QScrollArea):
     #     return (self.plot_graph, x)
 
     def add_stream_graph(self, stream_name, connection_data):
-        stream_graph, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+        stream_graph, legend, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
         stream_name_label = QLabel(stream_name + " :")
         stream_name_label.setWordWrap(True)
         self.layout.addWidget(stream_name_label)
         self.layout.addWidget(stream_graph)
-
+        legend_label = QLabel(legend)
+        legend_label.setWordWrap(True)
+        self.layout.addWidget(legend_label)
         packet_list_label = QLabel(packet_list)
         packet_list_label.setWordWrap(True)
         self.layout.addWidget(packet_list_label)
@@ -119,9 +121,10 @@ class StreamsWindow(QScrollArea):
             packet_list += "Packets in connection " + str(key) + " :\n"
             for packet in x:
                 packet_list += str(packet) + ", "
-                packet_list = packet_list[:-2] + "\n"
-        self.plot_graph.axes.legend()
-        return (self.plot_graph, packet_list)
+            packet_list = packet_list[:-2] + "\n"
+        self.plot_graph.axes.set_xlabel("Packet number")
+        self.plot_graph.axes.set_ylabel("Number of packets in the stream")
+        return (self.plot_graph, self.plot_graph.axes.legend(), packet_list)
 
 
 class header_diagram():
