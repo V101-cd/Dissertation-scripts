@@ -97,14 +97,14 @@ class StreamsWindow(QScrollArea):
     #     return (self.plot_graph, x)
 
     def add_stream_graph(self, stream_name, connection_data):
-        stream_graph, legend, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+        stream_graph, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
         stream_name_label = QLabel(stream_name + " :")
         stream_name_label.setWordWrap(True)
         self.layout.addWidget(stream_name_label)
         self.layout.addWidget(stream_graph)
-        legend_label = QLabel(legend)
-        legend_label.setWordWrap(True)
-        self.layout.addWidget(legend_label)
+        # legend_label = (legend)
+        # legend_label.setWordWrap(True)
+        # self.layout.addWidget(legend)
         packet_list_label = QLabel(packet_list)
         packet_list_label.setWordWrap(True)
         self.layout.addWidget(packet_list_label)
@@ -124,7 +124,7 @@ class StreamsWindow(QScrollArea):
             packet_list = packet_list[:-2] + "\n"
         self.plot_graph.axes.set_xlabel("Packet number")
         self.plot_graph.axes.set_ylabel("Number of packets in the stream")
-        return (self.plot_graph, self.plot_graph.axes.legend(), packet_list)
+        return (self.plot_graph, packet_list)
 
 
 class header_diagram():
@@ -475,7 +475,6 @@ class MainWindow(QMainWindow):
             self.clear_layout_view()
             self.pcap_loading_status.setText("Parsing PCAP...")
             QApplication.processEvents()
-            self.streams_btn.show()
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
             self.pcap_name = selected_files[0]
@@ -492,6 +491,7 @@ class MainWindow(QMainWindow):
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
+            self.streams_btn.show()
             self.pcap_loading_status.setText("PCAP successfully loaded!")
             QApplication.processEvents()
 
@@ -510,10 +510,18 @@ class MainWindow(QMainWindow):
         return pcap_rows_widget
 
     def clear_layout_view(self):
-        self.scroll_area.setWidget(QWidget())
+        if self.scroll_area:
+            self.scroll_area.setWidget(QWidget())
 
     def view_streams(self):
-        self.stream_window.show()
+        if self.stream_window:
+            self.pcap_loading_status.setText("Streams diagrams loading...")
+            self.streams_btn.setDisabled(True)
+            QApplication.processEvents()
+            self.stream_window.show()
+            self.pcap_loading_status.setText("Streams diagrams successfully loaded!")
+            self.streams_btn.setEnabled(True)
+            QApplication.processEvents()
         
     def packet_btn_clicked(self):
         sender = self.sender()
