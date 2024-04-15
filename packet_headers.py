@@ -167,6 +167,7 @@ class ip4header:
         self.chksum  = None
         self.srcaddrb= None
         self.dstaddrb= None
+        self.datagrambytes = None    # firsst 64 bits of data
         self.verbose = None
 
     # the following static method returns an ip4header object
@@ -177,7 +178,7 @@ class ip4header:
             return None
         ip4h = ip4header()
         ip4h.iphdrlen = (buf[bufstart] & 0x0f) * 4
-        if VERIFY_CHECKSUMS and IPchksum(buf, bufstart,  ip4h.iphdrlen) != 0xffff: return None 	# drop packet
+        if VERIFY_CHECKSUMS and IPchksum(buf, bufstart, ip4h.iphdrlen) != 0xffff: return None 	# drop packet
         a = struct.unpack_from('!BHHHBBH4s4s', buf, bufstart+1)
         (ip4h.dsfield, ip4h.length, ip4h.ident, fragword, ip4h.ttl, ip4h.proto, ip4h.chksum, ip4h.srcaddrb, ip4h.dstaddrb) = a
         # ip4h.fragflags = (fragword >> 13) & 0x7
@@ -190,6 +191,10 @@ class ip4header:
         ip4h.proto = int(ip4h.proto)
         ip4h.srcaddrb = realsocket.inet_ntoa(ip4h.srcaddrb)
         ip4h.dstaddrb = realsocket.inet_ntoa(ip4h.dstaddrb)
+        if ip4h.iphdrlen <= len(buf[bufstart:]):
+            ip4h.datagrambytes = bytearray(buf[bufstart + ip4h.iphdrlen: bufstart + ip4h.iphdrlen + 8]).hex()
+        else:
+            ip4h.datagrambytes = None
         ip4h.verbose = ip4h.get_verbose()
         return ip4h
         
@@ -339,13 +344,14 @@ class ip6header:
     
 class icmp4header:
     def __init__(self): ##datatracker.ietf.org/html/rfc792
-        self.type           = None #Type, 8 bits
-        self.code           = None #Code, 8 bits
-        self.checksum       = None #Checksum, 16 bits
-        # self.various        = None #various uses, 32 bits
-        self.verbose        = None
-        # self.ip4header      = None #IPv4 header
-        # self.datagrambytes  = None #first 64 bits of the datagram
+        self.type               = None #Type, 8 bits
+        self.code               = None #Code, 8 bits
+        self.checksum           = None #Checksum, 16 bits
+        # self.various          = None #various uses, 32 bits
+        # self.original_datagram  = None
+        self.verbose            = None
+        self.ip4header          = None #IPv4 header
+        self.datagrambytes      = None #first 64 bits of the datagram
     
     # We need the iphdr to verify the checksum
     @staticmethod
@@ -366,6 +372,10 @@ class icmp4header:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Echo Reply\n"  ##datatracker.ietf.org/doc/html/rfc792 16 March 2024
             case 3:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Destination Unreachable\n"
+                counter += (32//4) #unused/various uses
+                icmph.ip4header = bytearray.fromhex(hexbuf[counter: counter + (160//4)])
+                counter += (160//4)
+                icmph.datagrambytes = bytearray.fromhex(hexbuf[counter: counter + (64//4)])
                 match icmph.code:
                     case 0:
                         icmph.verbose += f"ICMP Code {icmph.code}: Net is unreachable\n"
@@ -401,8 +411,16 @@ class icmp4header:
                         icmph.verbose += f"ICMP Code {icmph.code}: Precedence cutoff is in effect\n"
             case 4:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Source Quench\n"
+                counter += (32//4) #unused/various uses
+                icmph.ip4header = bytearray.fromhex(hexbuf[counter: counter + (160//4)])
+                counter += (160//4)
+                icmph.datagrambytes = bytearray.fromhex(hexbuf[counter: counter + (64//4)])
             case 5:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Redirect\n"
+                counter += (32//4) #unused/various uses
+                icmph.ip4header = bytearray.fromhex(hexbuf[counter: counter + (160//4)])
+                counter += (160//4)
+                icmph.datagrambytes = bytearray.fromhex(hexbuf[counter: counter + (64//4)])
                 match icmph.code:
                     case 0:
                         icmph.verbose += f"ICMP Code {icmph.code}: Redirect datagram for the network (or subnet)\n"
@@ -420,6 +438,10 @@ class icmp4header:
                 icmph.verbose = f"ICMP Type {icmph.type}: Router Selection\n"
             case 11:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Time Exceeded\n"
+                counter += (32//4) #unused/various uses
+                icmph.ip4header = bytearray.fromhex(hexbuf[counter: counter + (160//4)])
+                counter += (160//4)
+                icmph.datagrambytes = bytearray.fromhex(hexbuf[counter: counter + (64//4)])
                 match icmph.code:
                     case 0:
                         icmph.verbose += f"ICMP Code {icmph.code}: Time To Live (TTL) exceeded in transit\n"
@@ -427,9 +449,13 @@ class icmp4header:
                         icmph.verbose += f"ICMP Code {icmph.code}: Fragment reassembly time exceeded\n"
             case 12:
                 icmph.verbose = f"ICMP Type {icmph.type}: ICMP Parameter Problem\n"
+                counter += (32//4) #unused/various uses
+                icmph.ip4header = bytearray.fromhex(hexbuf[counter: counter + (160//4)])
+                counter += (160//4)
+                icmph.datagrambytes = bytearray.fromhex(hexbuf[counter: counter + (64//4)])
                 match icmph.code:
                     case 0:
-                        icmph.verbose += f"ICMP Code {icmph.code}: Pointer indicates the error\n"
+                        icmph.verbose += f"ICMP Code {icmph.code}: Pointer [in various uses] indicates the error\n"
                     case 1:
                         icmph.verbose += f"ICMP Code {icmph.code}: Missing a required option\n"
                     case 2:

@@ -1,5 +1,11 @@
 import sys
 import copy
+# from PyQt6 import uic
+# import pyqtgraph as pg
+import matplotlib
+matplotlib.use('QtAgg')
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtWidgets import (
     QApplication,
@@ -23,12 +29,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPainter, QPixmap, QResizeEvent
 import pylibpcap_follow_streams as parser
-# import pylibpcap_follow_streams as parser
+import packet_headers as headers
 
 class FrameWindow(QScrollArea):
 
     def __init__(self, packet_name):
-        # super(FrameWindow,self).__init__()
         super().__init__()
         self.packet_name = packet_name
         self.setWindowTitle(self.packet_name)
@@ -39,14 +44,6 @@ class FrameWindow(QScrollArea):
         self.setFixedSize(810,400)
         self.setWidgetResizable(True)
 
-    
-    # def add_frame(self, frame, frame_name):
-    #     self.layout.addWidget(QLabel(frame_name))
-    #     self.layout.addWidget(frame)
-    
-    # def add_verbose(self, message, verbose_type):
-    #     self.layout.addWidget(QLabel(verbose_type + ": " + message))
-
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
         self.layout.addLayout(diagram_label)
@@ -56,23 +53,75 @@ class FrameWindow(QScrollArea):
         verbose_label.setWordWrap(True)
         self.layout.addWidget(verbose_label)
 
-# class draw_frame():
-#     def __init__(self, num_cols, num_rows, headers=[], bits=True):
-#         super().__init__()
-#         self.num_cols = num_cols
-#         self.num_rows = num_rows+1
-#         self.headers = headers
-#         self.bits = bits
-#         if self.bits == True:
-#             self.datatype = "Bits"
-#         else:
-#             self.datatype = "Bytes"
-        
-#         self.frame = QTableWidget(self.num_rows, self.num_cols)
-#         # self.frame.setWordWrap(True)
-#         self.frame.setHorizontalHeaderLabels(self.headers)
-#         self.frame.setVerticalHeaderLabels([self.datatype, ""])
-#         self.frame.adjustSize()
+class MatplotlibCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MatplotlibCanvas, self).__init__(fig)
+
+class StreamsWindow(QScrollArea):
+
+    def __init__(self, pcap_name):
+        super().__init__()
+        self.setWindowTitle("Streams in " + pcap_name)
+        self.widget = QWidget()
+        self.layout = QVBoxLayout(self.widget)
+        self.setWidget(self.widget)
+        # self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFixedSize(810,400)
+        self.setWidgetResizable(True)
+
+    # def add_stream_graph(self, stream_name, connection_data):
+    #     for key in connection_data:
+    #         stream_graph, packets = self.generate_graph(key, connection_data[key])  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+    #         stream_name_label = QLabel(stream_name + " : " + str(key))
+    #         stream_name_label.setWordWrap(True)
+    #         self.layout.addWidget(stream_name_label)
+    #         self.layout.addWidget(stream_graph)
+    #         packet_list = "Packets in connection " + stream_name + " : " + str(key) + " :\n"
+    #         for packet in packets:
+    #             packet_list += str(packet) + ", "
+    #         packet_list_label = QLabel(packet_list[0:-2])
+    #         packet_list_label.setWordWrap(True)
+    #         self.layout.addWidget(packet_list_label)
+
+    # def generate_graph(self, key, keyed_connection_data):
+    #     self.plot_graph = MatplotlibCanvas(self)
+    #     x = [keyed_connection_data[i][0] for i in range(len(keyed_connection_data))]
+    #     y = [i+1 for i in range(len(keyed_connection_data))]
+    #     self.plot_graph.axes.set_ybound(0, max(y))
+    #     self.plot_graph.axes.set_xbound(0, max(x))
+    #     self.plot_graph.axes.plot(x, y, marker='.', label=key)
+    #     self.plot_graph.axes.legend()
+    #     return (self.plot_graph, x)
+
+    def add_stream_graph(self, stream_name, connection_data):
+        stream_graph, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+        stream_name_label = QLabel(stream_name + " :")
+        stream_name_label.setWordWrap(True)
+        self.layout.addWidget(stream_name_label)
+        self.layout.addWidget(stream_graph)
+        packet_list_label = QLabel(packet_list)
+        packet_list_label.setWordWrap(True)
+        self.layout.addWidget(packet_list_label)
+
+    def generate_graph(self, connection_data):
+        self.plot_graph = MatplotlibCanvas(self)
+        packet_list = ""
+        for key in connection_data:
+            x = [connection_data[key][i][0] for i in range(len(connection_data[key]))]
+            y = [i+1 for i in range(len(connection_data[key]))]
+            self.plot_graph.axes.set_ybound(0, max(y))
+            self.plot_graph.axes.set_xbound(0, max(x))
+            self.plot_graph.axes.plot(x, y, marker='.', label=key)
+            packet_list += "Packets in connection " + str(key) + " :\n"
+            for packet in x:
+                packet_list += str(packet) + ", "
+            packet_list = packet_list[:-2] + "\n"
+        self.plot_graph.axes.set_xlabel("Packet number")
+        self.plot_graph.axes.set_ylabel("Number of packets in the stream")
+        return (self.plot_graph, packet_list)
 
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
@@ -196,7 +245,8 @@ class header_diagram():
             self.dst_ip_label.move(QPoint(231,226))
 
         if header_type == "ip6":
-            self.diagram_label.setFixedSize(775,341)
+            # self.diagram_label.setFixedSize(775,341)
+            self.diagram_label.setFixedSize(775,500)
 
             self.version_label = QLabel("6")
             self.version_label.setParent(self.diagram_label)
@@ -224,11 +274,11 @@ class header_diagram():
 
             self.src_ip_label = QLabel(str(self.field_values["srcaddrb"]))
             self.src_ip_label.setParent(self.diagram_label)
-            self.src_ip_label.move(QPoint(231,170))
+            self.src_ip_label.move(QPoint(231,220))
 
             self.dst_ip_label = QLabel(str(self.field_values["dstaddrb"]))
             self.dst_ip_label.setParent(self.diagram_label)
-            self.dst_ip_label.move(QPoint(231,260))
+            self.dst_ip_label.move(QPoint(231,400))
 
             if extension_header_diagram != None:
                 for i in range(len(self.field_values["extheaders"])):
@@ -367,6 +417,38 @@ class header_diagram():
         if self.field_values["verbose"] != None:
             return self.field_values["verbose"]
         return None
+    
+# class tcp_opening_handshakes():
+#     def __init__(self):
+#         self.syn = None
+#         self.synack = None
+#         self.ack = None
+    
+#     def set_syn(self, syn_packet):
+#         if self.syn == None:
+#             self.syn = syn_packet
+    
+#     def set_synack(self, synack_packet):
+#         if self.synack == None:
+#             self.synack = synack_packet
+
+#     def set_ack(self, ack_packet):
+#         if self.ack == None:
+#             self.ack = ack_packet
+
+#     def get_syn(self):
+#         return self.syn
+    
+#     def get_synack(self):
+#         return self.synack
+
+#     def get_ack(self):
+#         return self.ack
+
+#     def get_handshake(self):
+#         if self.syn and self.synack and self.ack:
+#             return (self.syn, self.synack, self.ack)
+#         return None
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -376,51 +458,49 @@ class MainWindow(QMainWindow):
 
         pagelayout = QVBoxLayout()
         pcap_loader_layout = QHBoxLayout()
-        packet_layer_button_layout = QHBoxLayout()
+        # packet_layer_button_layout = QHBoxLayout()
         pcap_loading_status_layout = QHBoxLayout()
 
         pagelayout.addLayout(pcap_loader_layout)
-        pagelayout.addLayout(packet_layer_button_layout)
+        # pagelayout.addLayout(packet_layer_button_layout)
 
-        pcap_ldr_btn = QPushButton("Import PCAP files")
-        pcap_loader_layout.addWidget(pcap_ldr_btn)
-        pcap_ldr_btn.pressed.connect(lambda: self.pcap_loader())
+        self.pcap_ldr_btn = QPushButton("Import PCAP files")
+        pcap_loader_layout.addWidget(self.pcap_ldr_btn)
+        self.pcap_ldr_btn.pressed.connect(lambda: self.pcap_loader())
 
         pagelayout.addLayout(pcap_loading_status_layout)
-        self.pcap_loading_status = QLabel()
+        self.pcap_loading_status = QLabel("Import pcap to get started")
         pcap_loading_status_layout.addWidget(self.pcap_loading_status)
 
+        self.packet_visualisation_area = QHBoxLayout()
         self.scroll_area = QScrollArea()
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidgetResizable(True)
-        pagelayout.addWidget(self.scroll_area)
+        self.packet_visualisation_area.addWidget(self.scroll_area)
+        pagelayout.addLayout(self.packet_visualisation_area)
+        # pagelayout.addWidget(self.scroll_area)
+        copyright = QLabel("© Vedika Parulkar, April 2024")
+        pagelayout.addWidget(copyright, alignment=Qt.AlignmentFlag.AlignRight)
 
-        # self.eth_btn = QPushButton("Ethernet")
-        # self.eth_btn.hide()
-        # self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
-        # packet_layer_button_layout.addWidget(self.eth_btn)
-        # label_ethernet = QLabel()
-        # label_ethernet.setStyleSheet('QLabel{background-color:purple}')
-        # self.stacklayout.addWidget(label_ethernet)
+        self.analysis_tools = QVBoxLayout()
+        self.streams_btn = QPushButton("View Streams")
+        self.streams_btn.hide()
+        self.streams_btn.pressed.connect(lambda: self.view_streams())
+        self.analysis_tools.addWidget(self.streams_btn)
+        self.packet_visualisation_area.addLayout(self.analysis_tools)
+
+        self.tcp_handshakes_btn = QPushButton("View TCP Handshakes")
+        self.tcp_handshakes_btn.hide()
+        self.tcp_handshakes_btn.pressed.connect(lambda: self.view_tcp_handshakes())
+        self.analysis_tools.addWidget(self.tcp_handshakes_btn)
         
-        # self.udp_btn = QPushButton("UDP")
-        # self.udp_btn.hide()
-        # self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
-        # packet_layer_button_layout.addWidget(self.udp_btn)
-
-        # btn = QPushButton("blue")
-        # btn.pressed.connect(self.activate_tab_3)
-        # packet_layer_button_layout.addWidget(btn)
-        # label_blue = QLabel()
-        # label_blue.setStyleSheet('QLabel{background-color:blue}')
-        # self.stacklayout.addWidget(label_blue)
-
         widget = QWidget()
         widget.setLayout(pagelayout)
         self.setCentralWidget(widget)
     
     def pcap_loader(self):
+        self.pcap_ldr_btn.setDisabled(True)
         self.pcap_loading_status.setText("Loading pcap...")
         QApplication.processEvents()
         dialog = QFileDialog()
@@ -432,14 +512,31 @@ class MainWindow(QMainWindow):
             self.pcap_loading_status.setText("Parsing PCAP...")
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
-            self.pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
+            self.pcap_name = selected_files[0]
+            self.pcap_dicts = parser.pcap(self.pcap_name).get_packet_headers()
+            self.pcap_connections = parser.pcap(self.pcap_name).get_connections()
+            self.pcap_ip4_datagrambytes = parser.pcap(self.pcap_name).get_ip4_datagrambytes()
+            self.inv_ip4_datagrambytes = {value:key for key,value in self.pcap_ip4_datagrambytes.items()}
             self.pcap_loading_status.setText("Displaying packets...")
             QApplication.processEvents()
             pcap_packets_widget = self.display_pcap_list()
+            self.stream_window = StreamsWindow(self.pcap_name)
+            self.tcp_handshakes_window = FrameWindow("TCP Opening Handshakes in " + self.pcap_name)
+            for name, connection in self.pcap_connections:
+                if name == "TCP":
+                    self.locate_tcp_handshakes(connection)
+                self.stream_window.add_stream_graph(name, connection)
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
+            self.streams_btn.show()
+            self.tcp_handshakes_btn.show()
+            self.pcap_ldr_btn.setEnabled(True)
             self.pcap_loading_status.setText("PCAP successfully loaded!")
+            QApplication.processEvents()
+        else:
+            self.pcap_ldr_btn.setEnabled(True)
+            self.pcap_loading_status.setText("Import pcap to get started")
             QApplication.processEvents()
 
     
@@ -451,17 +548,68 @@ class MainWindow(QMainWindow):
             packet_btn = QPushButton("Packet " + str(i+1))
             pcap_rows.addWidget(packet_btn)
             packet_btn.clicked.connect(lambda: self.packet_btn_clicked())
-            print(i)
         print("Label generation completed")
         pcap_rows_widget.setLayout(pcap_rows)
         print("Setting scroll_area")
         return pcap_rows_widget
 
     def clear_layout_view(self):
-        # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
-        # for child in self.scroll_area.children():
-        #     child.deleteLater()
-        self.scroll_area.setWidget(QWidget())
+        if self.scroll_area:
+            self.scroll_area.setWidget(QWidget())
+
+    def view_streams(self):
+        if self.stream_window:
+            self.pcap_loading_status.setText("Streams diagrams loading...")
+            self.streams_btn.setDisabled(True)
+            QApplication.processEvents()
+            self.stream_window.show()
+            self.pcap_loading_status.setText("Streams diagrams successfully loaded!")
+            self.streams_btn.setEnabled(True)
+            QApplication.processEvents()
+
+    def view_tcp_handshakes(self):
+        if self.tcp_handshakes_window:
+            self.pcap_loading_status.setText("TCP handshakes loading...")
+            self.tcp_handshakes_btn.setDisabled(True)
+            QApplication.processEvents()
+            self.tcp_handshakes_window.show()
+            self.pcap_loading_status.setText("TCP handshakes successfully loaded!")
+            self.tcp_handshakes_btn.setEnabled(True)
+            QApplication.processEvents()
+
+    def locate_tcp_handshakes(self, tcp_streams):
+        tcp_handshakes = {} ##same port indexing for syn and ack packets; ports flip for synack packets
+        full_handshakes = []
+        all_tcp_packets = []
+        all_tcp_packets_parsed = {}
+        for stream in tcp_streams:
+            for packet in tcp_streams[stream]:
+                all_tcp_packets.append(packet)
+                all_tcp_packets_parsed[int(packet[0])] = [vars(self.pcap_dicts[int(packet[0])][key]) for key in self.pcap_dicts[int(packet[0])] if key == "tcp"][0]
+            all_tcp_packets_parsed = dict(sorted(all_tcp_packets_parsed.items()))
+        for packet_num in all_tcp_packets_parsed:
+            packet = all_tcp_packets_parsed[packet_num]
+            if packet_num in [1449, 1484, 1524, 1525, 1526]:
+                print(packet_num, packet['syn'], packet['ack'], packet['srcport'], packet['dstport'])
+            if packet['syn'] == 1 and packet['ack'] == 0:
+                tcp_handshakes[(packet['srcport'], packet['dstport'])] = {'syn':packet_num, 'synack':None, 'ack':None}
+            if packet['syn'] == 1 and packet['ack'] == 1:
+                if (packet['dstport'], packet['srcport']) in tcp_handshakes:
+                    if (tcp_handshakes[(packet['dstport'], packet['srcport'])])['syn'] != None and (tcp_handshakes[(packet['dstport'], packet['srcport'])])['synack'] == None and (tcp_handshakes[(packet['dstport'], packet['srcport'])])['ack'] == None:
+                        tcp_handshakes[(packet['dstport'], packet['srcport'])]['synack'] = packet_num
+            if packet['syn'] == 0 and packet['ack'] == 1:
+                if (packet['srcport'], packet['dstport']) in tcp_handshakes:
+                    if (tcp_handshakes[(packet['srcport'], packet['dstport'])])['syn'] != None and (tcp_handshakes[(packet['srcport'], packet['dstport'])])['synack'] != None and (tcp_handshakes[(packet['srcport'], packet['dstport'])])['ack'] == None:
+                        tcp_handshakes[(packet['srcport'], packet['dstport'])]['ack'] = packet_num
+    
+        for handshake in tcp_handshakes:
+            handshake_message = f"SYN: {tcp_handshakes[handshake]['syn']} \n"
+            if tcp_handshakes[handshake]['synack'] != None:
+                handshake_message += f"SYNACK: {tcp_handshakes[handshake]['synack']} \n"
+                if tcp_handshakes[handshake]['ack'] != None:
+                    handshake_message += f"ACK: {tcp_handshakes[handshake]['ack']} \n"
+            self.tcp_handshakes_window.add_verbose_label(f"TCP opening handshake between port {handshake[0]} and port {handshake[1]}\n{handshake_message}")
+
         
     def packet_btn_clicked(self):
         sender = self.sender()
@@ -474,52 +622,32 @@ class MainWindow(QMainWindow):
             print(key)
             packet_header_attributes[key] = vars(packet_headers[key])
             if key == "ethernet":
-                # self.visualise_header(packet_header_attributes[key], "Ethernet", [6,6,2], False, packet_header_attributes[key].keys())
                 self.view_header_diagram(key, packet_header_attributes[key])
                 print("visualised eth")
             if key == "arp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ARP", [2,2,6,4,6,4,0], False, packet_header_attributes[key].keys())
                 print("visualised arp")
             if key == "ip4":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "IPv4", [4,8,16,16,3,13,8,8,16,32,32], True, packet_header_attributes[key].keys())
                 print("visualised ipv4")
             if key == "ip6":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "IPv6", [4,8,20,16,8,8,128,128], True, packet_header_attributes[key].keys())
                 print("visualised ipv6")
             if key == "tcp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "TCP", [16,16,32,32,4,4,1,1,1,1,1,1,1,1,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised tcp")
             if key == "udp":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "UDP", [16,16,16,16], True, packet_header_attributes[key].keys())
                 print("visualised udp")
             if key == "icmp4":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ICMPv4", [8,8,16,32], True, packet_header_attributes[key].keys())
                 print("visualised icmpv4")
             if key == "icmp6":
                 self.view_header_diagram(key, packet_header_attributes[key])
-                # self.visualise_header(packet_header_attributes[key], "ICMPv6", [8,8,16], True, packet_header_attributes[key].keys())
                 print("visualised icmpv6")
 
         self.header_window.show()
         print(packet_num, packet_header_attributes)
-        
-    def get_Ethernet_headers(self, packet_info):
-        print(packet_info.split('('))
-
-    def activate_tab_1(self):
-        self.stacklayout.setCurrentIndex(0)
-
-    def activate_tab_2(self):
-        self.stacklayout.setCurrentIndex(1)
-
-    def activate_tab_3(self):
-        self.stacklayout.setCurrentIndex(2)
 
     def view_header_diagram(self, header_type, field_values):
         if header_type == "ethernet":
@@ -543,14 +671,9 @@ class MainWindow(QMainWindow):
         if header_type == "ip6":
             if field_values["extheaders"] != []:
                 diagram = header_diagram("./ipv6-base-packet-header.png", header_type, field_values, "./ipv6-packet-extension-header.png")
-                # extension = True
             else:
                 diagram = header_diagram("./ipv6-packet-header-without-extensions.png", header_type, field_values)
-                # extension = None
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "IPv6")
-            # if extension != None:
-            #     for _ in range(len(field_values["extheaders"])):
-            #         self.header_window.add_diagram_label(extension.get_diagram_label(), "")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
@@ -572,37 +695,39 @@ class MainWindow(QMainWindow):
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
+            if "ip4header" in field_values.keys():
+                icmp_verbose = ""
+                icmp_ip4header = field_values["ip4header"]
+                if icmp_ip4header:
+                    icmp_ip4header_parsed = parser.packet(0,0,0,icmp_ip4header).get_header(icmp_ip4header,0,headers.ip4header)
+                    if "datagrambytes" in field_values.keys():
+                        icmp_datagrambytes = field_values["datagrambytes"]
+                        if icmp_datagrambytes:
+                            icmp_datagrambytes_hex = (icmp_datagrambytes).hex()
+                            icmp_verbose += f"ICMP error thrown from IPv4 packet with datagram [first 64 bits]: {icmp_datagrambytes_hex}\n"
+                            if (icmp_ip4header_parsed.srcaddrb, icmp_ip4header_parsed.dstaddrb, icmp_datagrambytes_hex) in self.inv_ip4_datagrambytes:
+                                try:
+                                    icmp_verbose = f"ICMP error thrown from packet {self.inv_ip4_datagrambytes[(icmp_ip4header_parsed.srcaddrb, icmp_ip4header_parsed.dstaddrb, icmp_datagrambytes_hex)]}\n"
+                                except:
+                                    icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n\tdatagram [first 64 bits]: {icmp_datagrambytes_hex}\n"         
+                            else:
+                                icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n\tdatagram [first 64 bits]: {icmp_datagrambytes_hex}\n"       
+                        else:
+                            icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n"
+                    else:
+                        icmp_verbose = f"ICMP error thrown from unknown IPv4 packet (may not be in this PCAP) with:\n\tsource IP: {icmp_ip4header_parsed.srcaddrb}\n\tdestination IP: {icmp_ip4header_parsed.dstaddrb}\n"
+                else:
+                    icmp_verbose = f"ICMP error thrown from an unidentifiable IPv4 packet\n"
+            else:
+                icmp_verbose = f"ICMP error thrown from an unidentifiable IPv4 packet\n"
+            self.header_window.add_verbose_label(icmp_verbose)            
+
         if header_type == "icmp6":
-            print("Header_type == icmp6")
             diagram = header_diagram("./icmp-header.png", header_type, field_values)
             self.header_window.add_diagram_label(diagram.get_diagram_label(), "ICMPv6")
             verbose_label = diagram.get_verbose_label()
             if verbose_label != None:
                 self.header_window.add_verbose_label(verbose_label)
-
-    # def visualise_header(self, packet_info : dict, header_type, field_sizes, bits_true, row_headers = [], verbose_list = []):
-    #     if row_headers == []:
-    #         row_headers = packet_info.keys()
-    #     row_headers = list(row_headers)
-    #     print
-    #     if "verbose" in packet_info.keys():
-    #         verbose_list.append(packet_info["verbose"])
-    #         print("verbose in keys")
-    #         cols = len(packet_info.keys()) - 1
-    #     else:
-    #         cols = len(packet_info.keys())
-    #     rows = 1
-    #     frame = draw_frame(cols, rows, row_headers, bits=bits_true)
-        
-    #     for i in range(cols):
-    #         frame.frame.setItem(0,i,QTableWidgetItem(str(field_sizes[i])))
-    #         frame.frame.setItem(1,i,QTableWidgetItem(str(packet_info[list(packet_info.keys())[i]])))
-    #     self.header_window.add_frame(frame.frame, header_type)
-    #     if verbose_list != []:
-    #         for message in verbose_list:
-    #             self.header_window.add_verbose(message, header_type + " Verbose")
-    #             verbose_list.remove(message)
-    #     self.header_window.resize(565,280)
 
 app = QApplication(sys.argv)
 

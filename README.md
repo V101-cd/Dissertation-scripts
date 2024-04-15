@@ -7,3 +7,5 @@ Can only run on Linux
   - to run: cd into the folder where the tool is, then `python libpcap-parser.py [name of pcaps]`
   - to run the packet analysis gui (must be from terminal), cd into the folder where the tool is, then `python packet-analysis-gui-libpcap.py`
   - to end venv session: `deactivate`
+
+  - Need to install `pyqtgraph` within venv: `python -m pip install pyqtgraph`

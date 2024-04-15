@@ -57,13 +57,33 @@ class packet:
                     self.protocols["ip4"] = self.ip4h
                     # srcip = socket.inet_ntoa(self.ip4h.srcaddrb)
                     # dstip = socket.inet_ntoa(self.ip4h.dstaddrb)
-                    self.ip4_key = (self.ip4h.srcaddrb, self.ip4h.dstaddrb)
+                    self.ip4_key = (self.ip4h.srcaddrb, self.ip4h.dstaddrb, self.ip4h.datagrambytes)
                     match self.ip4h.proto:
                         case 1:
                             self.icmp4h = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, icmp4header)
                             if self.icmp4h != None:
                                 self.protocols["icmp4"] = self.icmp4h
-                                self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                if self.icmp4h.ip4header != None:
+                                    icmp_ipheader = self.get_header(self.icmp4h.ip4header, 0, ip4header)
+                                    if icmp_ipheader != None:
+                                        match icmp_ipheader.proto:
+                                            case 6:
+                                                icmp_tcpheader = self.get_header(self.icmp4h.datagrambytes, 0, tcpheader)
+                                                if icmp_tcpheader != None:
+                                                    # print("ICMP IP header: ", icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_tcpheader.srcport, icmp_tcpheader.dstport)
+                                                    self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_tcpheader.srcport, icmp_tcpheader.dstport, self.icmp4h.verbose)
+                                            case 17:
+                                                icmp_udpheader = self.get_header(self.icmp4h.datagrambytes, 0, udpheader)
+                                                if icmp_udpheader != None:
+                                                    # print("ICMP IP header: ", icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_udpheader.srcport, icmp_udpheader.dstport)
+                                                    self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, icmp_ipheader.srcaddrb, icmp_ipheader.dstaddrb, icmp_ipheader.proto, icmp_udpheader.srcport, icmp_udpheader.dstport, self.icmp4h.verbose)
+                                            case other:
+                                                self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                    else:
+                                        self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                else:
+                                    self.icmp4_key = (self.icmp4h.type, self.icmp4h.code, self.icmp4h.verbose)
+                                
                         case 6:
                             self.tcph = self.get_header(self.packet_buff, ETHHDRLEN + self.ip4h.iphdrlen, tcpheader)
                             if self.tcph != None:
@@ -146,7 +166,7 @@ class packet:
     def get_icmp4_key(self):
         if self.icmp4_key != None:
             return self.icmp4_key
-    
+
     def get_icmp6_key(self):
         if self.icmp6_key != None:
             return self.icmp6_key
@@ -164,7 +184,9 @@ class pcap:
         PACKET_COUNT = 0
         self.fname = filename
         self.stream_dicts = connections()
+        self.icmp4_rev_dict = {}
         self.packet_headers = {}
+        self.ip4_dict = {}
         for length, time, pktbuf in rpcap(self.fname):		# here we examine each packet
             PACKET_COUNT += 1
             single_packet = packet(PACKET_COUNT, length, time, pktbuf)
@@ -178,7 +200,8 @@ class pcap:
                     if connection_name == "ARP":
                         key = single_packet.get_arp_key()
                     if connection_name == "IP4":
-                        key = single_packet.get_ip4_key()
+                        key = single_packet.get_ip4_key()[0:2]
+                        self.ip4_dict[single_packet_num] = single_packet.get_ip4_key()
                     if connection_name == "IP6":
                         key = single_packet.get_ip6_key()
                     if connection_name == "ICMP4":
@@ -193,6 +216,7 @@ class pcap:
                 if key != None:
                     self.add_to_stream(single_packet_num, pktbuf, key, connection_dict)
 
+
     def add_to_stream(self, packet_num, pktbuf, key, connectiondict):
         if key in connectiondict:
             connectiondict[key].append([packet_num, pktbuf])
@@ -204,6 +228,9 @@ class pcap:
     
     def get_packet_headers(self):
         return self.packet_headers
+
+    def get_ip4_datagrambytes(self):
+        return self.ip4_dict
 
 def print_from_terminal():
     num_packets = len(sys.argv)-1
@@ -222,20 +249,25 @@ def print_from_terminal():
                 print(f"File {single_pcap} not a pcap. Aborting.\n")
             else:
                 FILENAME = single_pcap
-                # parsed_pcap = pcap(FILENAME)
-                # for name, connection in parsed_pcap.get_connections():
-                #     print(name)
-                #     for key in connection:
-                #         print(key, [connection[key][i][0] for i in range(len(connection[key]))])
-                for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
-                    PACKET_COUNT += 1
-                    num_protocols = packet(PACKET_COUNT, length, time, pktbuf).get_protocols()
-                    packet_num = num_protocols[0]
-                    protocols = num_protocols[1]
-                    protocols_attributes = {}
-                    for key in protocols:
-                        protocols_attributes[key] = vars(protocols[key])
-                    print(packet_num, protocols_attributes)
+                parsed_pcap = pcap(FILENAME)
+                for name, connection in parsed_pcap.get_connections():
+                    print(name)
+                    # for key in connection:
+                    if name == "TCP":
+                        for key in connection:
+                            print(key, [connection[key][i][0] for i in range(len(connection[key]))])
+
+
+
+                # for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
+                #     PACKET_COUNT += 1
+                #     num_protocols = packet(PACKET_COUNT, length, time, pktbuf).get_protocols()
+                #     packet_num = num_protocols[0]
+                #     protocols = num_protocols[1]
+                #     protocols_attributes = {}
+                #     for key in protocols:
+                #         protocols_attributes[key] = vars(protocols[key])
+                #     print(packet_num, protocols_attributes)
             
 #                 eth_sum = 0
 #                 for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
