@@ -72,32 +72,56 @@ class StreamsWindow(QScrollArea):
         self.setFixedSize(810,400)
         self.setWidgetResizable(True)
 
-    def add_stream_graph(self, stream_name, connection_data):
-        for key in connection_data:
-            # for connection in connection_data[key]:
-            #     print(connection)
-            # print(key)
-            stream_graph, packets = self.generate_graph(key, connection_data[key])  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
-            stream_name_label = QLabel(stream_name + " : " + str(key))
-            stream_name_label.setWordWrap(True)
-            self.layout.addWidget(stream_name_label)
-            self.layout.addWidget(stream_graph)
-            packet_list = "Packets in connection " + stream_name + " : " + str(key) + " :\n"
-            for packet in packets:
-                packet_list += str(packet) + ", "
-            packet_list_label = QLabel(packet_list[0:-2])
-            packet_list_label.setWordWrap(True)
-            self.layout.addWidget(packet_list_label)
+    # def add_stream_graph(self, stream_name, connection_data):
+    #     for key in connection_data:
+    #         stream_graph, packets = self.generate_graph(key, connection_data[key])  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+    #         stream_name_label = QLabel(stream_name + " : " + str(key))
+    #         stream_name_label.setWordWrap(True)
+    #         self.layout.addWidget(stream_name_label)
+    #         self.layout.addWidget(stream_graph)
+    #         packet_list = "Packets in connection " + stream_name + " : " + str(key) + " :\n"
+    #         for packet in packets:
+    #             packet_list += str(packet) + ", "
+    #         packet_list_label = QLabel(packet_list[0:-2])
+    #         packet_list_label.setWordWrap(True)
+    #         self.layout.addWidget(packet_list_label)
 
-    def generate_graph(self, key, keyed_connection_data):
+    # def generate_graph(self, key, keyed_connection_data):
+    #     self.plot_graph = MatplotlibCanvas(self)
+    #     x = [keyed_connection_data[i][0] for i in range(len(keyed_connection_data))]
+    #     y = [i+1 for i in range(len(keyed_connection_data))]
+    #     self.plot_graph.axes.set_ybound(0, max(y))
+    #     self.plot_graph.axes.set_xbound(0, max(x))
+    #     self.plot_graph.axes.plot(x, y, marker='.', label=key)
+    #     self.plot_graph.axes.legend()
+    #     return (self.plot_graph, x)
+
+    def add_stream_graph(self, stream_name, connection_data):
+        stream_graph, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+        stream_name_label = QLabel(stream_name + " :")
+        stream_name_label.setWordWrap(True)
+        self.layout.addWidget(stream_name_label)
+        self.layout.addWidget(stream_graph)
+
+        packet_list_label = QLabel(packet_list)
+        packet_list_label.setWordWrap(True)
+        self.layout.addWidget(packet_list_label)
+
+    def generate_graph(self, connection_data):
         self.plot_graph = MatplotlibCanvas(self)
-        x = [keyed_connection_data[i][0] for i in range(len(keyed_connection_data))]
-        y = [i+1 for i in range(len(keyed_connection_data))]
-        self.plot_graph.axes.set_ybound(0, max(y))
-        self.plot_graph.axes.set_xbound(0, max(x))
-        self.plot_graph.axes.plot(x, y, marker='.', label=key)
+        packet_list = ""
+        for key in connection_data:
+            x = [connection_data[key][i][0] for i in range(len(connection_data[key]))]
+            y = [i+1 for i in range(len(connection_data[key]))]
+            self.plot_graph.axes.set_ybound(0, max(y))
+            self.plot_graph.axes.set_xbound(0, max(x))
+            self.plot_graph.axes.plot(x, y, marker='.', label=key)
+            packet_list += "Packets in connection " + str(key) + " :\n"
+            for packet in x:
+                packet_list += str(packet) + ", "
+                packet_list = packet_list[:-2] + "\n"
         self.plot_graph.axes.legend()
-        return (self.plot_graph, x)
+        return (self.plot_graph, packet_list)
 
 
 class header_diagram():
