@@ -1,5 +1,11 @@
 import sys
 import copy
+# from PyQt6 import uic
+# import pyqtgraph as pg
+import matplotlib
+matplotlib.use('QtAgg')
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtWidgets import (
     QApplication,
@@ -28,7 +34,6 @@ import packet_headers as headers
 class FrameWindow(QScrollArea):
 
     def __init__(self, packet_name):
-        # super(FrameWindow,self).__init__()
         super().__init__()
         self.packet_name = packet_name
         self.setWindowTitle(self.packet_name)
@@ -39,14 +44,6 @@ class FrameWindow(QScrollArea):
         self.setFixedSize(810,400)
         self.setWidgetResizable(True)
 
-    
-    # def add_frame(self, frame, frame_name):
-    #     self.layout.addWidget(QLabel(frame_name))
-    #     self.layout.addWidget(frame)
-    
-    # def add_verbose(self, message, verbose_type):
-    #     self.layout.addWidget(QLabel(verbose_type + ": " + message))
-
     def add_diagram_label(self, diagram_label, header_name):
         self.layout.addWidget(QLabel(header_name))
         self.layout.addLayout(diagram_label)
@@ -56,23 +53,52 @@ class FrameWindow(QScrollArea):
         verbose_label.setWordWrap(True)
         self.layout.addWidget(verbose_label)
 
-# class draw_frame():
-#     def __init__(self, num_cols, num_rows, headers=[], bits=True):
-#         super().__init__()
-#         self.num_cols = num_cols
-#         self.num_rows = num_rows+1
-#         self.headers = headers
-#         self.bits = bits
-#         if self.bits == True:
-#             self.datatype = "Bits"
-#         else:
-#             self.datatype = "Bytes"
-        
-#         self.frame = QTableWidget(self.num_rows, self.num_cols)
-#         # self.frame.setWordWrap(True)
-#         self.frame.setHorizontalHeaderLabels(self.headers)
-#         self.frame.setVerticalHeaderLabels([self.datatype, ""])
-#         self.frame.adjustSize()
+class MatplotlibCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        super(MatplotlibCanvas, self).__init__(fig)
+
+class StreamsWindow(QScrollArea):
+
+    def __init__(self, pcap_name):
+        super().__init__()
+        self.setWindowTitle("Streams in " + pcap_name)
+        self.widget = QWidget()
+        self.layout = QVBoxLayout(self.widget)
+        self.setWidget(self.widget)
+        # self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFixedSize(810,400)
+        self.setWidgetResizable(True)
+
+    def add_stream_graph(self, stream_name, connection_data):
+        for key in connection_data:
+            # for connection in connection_data[key]:
+            #     print(connection)
+            # print(key)
+            stream_graph, packets = self.generate_graph(key, connection_data[key])  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+            stream_name_label = QLabel(stream_name + " : " + str(key))
+            stream_name_label.setWordWrap(True)
+            self.layout.addWidget(stream_name_label)
+            self.layout.addWidget(stream_graph)
+            packet_list = "Packets in connection " + stream_name + " : " + str(key) + " :\n"
+            for packet in packets:
+                packet_list += str(packet) + ", "
+            packet_list_label = QLabel(packet_list[0:-2])
+            packet_list_label.setWordWrap(True)
+            self.layout.addWidget(packet_list_label)
+
+    def generate_graph(self, key, keyed_connection_data):
+        self.plot_graph = MatplotlibCanvas(self)
+        x = [keyed_connection_data[i][0] for i in range(len(keyed_connection_data))]
+        y = [i+1 for i in range(len(keyed_connection_data))]
+        self.plot_graph.axes.set_ybound(0, max(y))
+        self.plot_graph.axes.set_xbound(0, max(x))
+        self.plot_graph.axes.plot(x, y, marker='.', label=key)
+        self.plot_graph.axes.legend()
+        return (self.plot_graph, x)
+
 
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
@@ -377,11 +403,11 @@ class MainWindow(QMainWindow):
 
         pagelayout = QVBoxLayout()
         pcap_loader_layout = QHBoxLayout()
-        packet_layer_button_layout = QHBoxLayout()
+        # packet_layer_button_layout = QHBoxLayout()
         pcap_loading_status_layout = QHBoxLayout()
 
         pagelayout.addLayout(pcap_loader_layout)
-        pagelayout.addLayout(packet_layer_button_layout)
+        # pagelayout.addLayout(packet_layer_button_layout)
 
         pcap_ldr_btn = QPushButton("Import PCAP files")
         pcap_loader_layout.addWidget(pcap_ldr_btn)
@@ -391,34 +417,22 @@ class MainWindow(QMainWindow):
         self.pcap_loading_status = QLabel()
         pcap_loading_status_layout.addWidget(self.pcap_loading_status)
 
+        self.packet_visualisation_area = QHBoxLayout()
         self.scroll_area = QScrollArea()
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setWidgetResizable(True)
-        pagelayout.addWidget(self.scroll_area)
+        self.packet_visualisation_area.addWidget(self.scroll_area)
+        pagelayout.addLayout(self.packet_visualisation_area)
+        # pagelayout.addWidget(self.scroll_area)
         copyright = QLabel("© Vedika Parulkar, April 2024")
         pagelayout.addWidget(copyright, alignment=Qt.AlignmentFlag.AlignRight)
 
-        # self.eth_btn = QPushButton("Ethernet")
-        # self.eth_btn.hide()
-        # self.eth_btn.pressed.connect(lambda: self.show_ethernet_frame("Test packet - Ethernet frame", packet_info))
-        # packet_layer_button_layout.addWidget(self.eth_btn)
-        # label_ethernet = QLabel()
-        # label_ethernet.setStyleSheet('QLabel{background-color:purple}')
-        # self.stacklayout.addWidget(label_ethernet)
+        self.streams_btn = QPushButton("View Streams")
+        self.streams_btn.hide()
+        self.streams_btn.pressed.connect(lambda: self.view_streams())
+        self.packet_visualisation_area.addWidget(self.streams_btn)
         
-        # self.udp_btn = QPushButton("UDP")
-        # self.udp_btn.hide()
-        # self.udp_btn.pressed.connect(lambda: self.show_udp_frame("Test packet - UDP frame", udp_packet_info))
-        # packet_layer_button_layout.addWidget(self.udp_btn)
-
-        # btn = QPushButton("blue")
-        # btn.pressed.connect(self.activate_tab_3)
-        # packet_layer_button_layout.addWidget(btn)
-        # label_blue = QLabel()
-        # label_blue.setStyleSheet('QLabel{background-color:blue}')
-        # self.stacklayout.addWidget(label_blue)
-
         widget = QWidget()
         widget.setLayout(pagelayout)
         self.setCentralWidget(widget)
@@ -434,14 +448,20 @@ class MainWindow(QMainWindow):
             self.clear_layout_view()
             self.pcap_loading_status.setText("Parsing PCAP...")
             QApplication.processEvents()
+            self.streams_btn.show()
+            QApplication.processEvents()
             selected_files = dialog.selectedFiles()
-            self.pcap_dicts = parser.pcap(selected_files[0]).get_packet_headers()
-            self.pcap_connections = parser.pcap(selected_files[0]).get_connections()
-            self.pcap_ip4_datagrambytes = parser.pcap(selected_files[0]).get_ip4_datagrambytes()
+            self.pcap_name = selected_files[0]
+            self.pcap_dicts = parser.pcap(self.pcap_name).get_packet_headers()
+            self.pcap_connections = parser.pcap(self.pcap_name).get_connections()
+            self.pcap_ip4_datagrambytes = parser.pcap(self.pcap_name).get_ip4_datagrambytes()
             self.inv_ip4_datagrambytes = {value:key for key,value in self.pcap_ip4_datagrambytes.items()}
             self.pcap_loading_status.setText("Displaying packets...")
             QApplication.processEvents()
             pcap_packets_widget = self.display_pcap_list()
+            self.stream_window = StreamsWindow(self.pcap_name)
+            for name, connection in self.pcap_connections:
+                self.stream_window.add_stream_graph(name, connection)
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
@@ -457,17 +477,16 @@ class MainWindow(QMainWindow):
             packet_btn = QPushButton("Packet " + str(i+1))
             pcap_rows.addWidget(packet_btn)
             packet_btn.clicked.connect(lambda: self.packet_btn_clicked())
-            print(i)
         print("Label generation completed")
         pcap_rows_widget.setLayout(pcap_rows)
         print("Setting scroll_area")
         return pcap_rows_widget
 
     def clear_layout_view(self):
-        # self.pcap_rows_widget.setParent(None) ##should delete all rows in it too
-        # for child in self.scroll_area.children():
-        #     child.deleteLater()
         self.scroll_area.setWidget(QWidget())
+
+    def view_streams(self):
+        self.stream_window.show()
         
     def packet_btn_clicked(self):
         sender = self.sender()

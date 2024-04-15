@@ -249,20 +249,23 @@ def print_from_terminal():
                 print(f"File {single_pcap} not a pcap. Aborting.\n")
             else:
                 FILENAME = single_pcap
-                # parsed_pcap = pcap(FILENAME)
-                # for name, connection in parsed_pcap.get_connections():
-                #     print(name)
-                #     for key in connection:
-                #         print(key, [connection[key][i][0] for i in range(len(connection[key]))])
-                for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
-                    PACKET_COUNT += 1
-                    num_protocols = packet(PACKET_COUNT, length, time, pktbuf).get_protocols()
-                    packet_num = num_protocols[0]
-                    protocols = num_protocols[1]
-                    protocols_attributes = {}
-                    for key in protocols:
-                        protocols_attributes[key] = vars(protocols[key])
-                    print(packet_num, protocols_attributes)
+                parsed_pcap = pcap(FILENAME)
+                for name, connection in parsed_pcap.get_connections():
+                    print(name)
+                    for key in connection:
+                        print(key, [connection[key][i][0] for i in range(len(connection[key]))])
+
+
+
+                # for length, time, pktbuf in rpcap(FILENAME):		# here we examine each packet
+                #     PACKET_COUNT += 1
+                #     num_protocols = packet(PACKET_COUNT, length, time, pktbuf).get_protocols()
+                #     packet_num = num_protocols[0]
+                #     protocols = num_protocols[1]
+                #     protocols_attributes = {}
+                #     for key in protocols:
+                #         protocols_attributes[key] = vars(protocols[key])
+                #     print(packet_num, protocols_attributes)
             
 #                 eth_sum = 0
 #                 for key in stream_dicts.ETHERNET_CONNECTIONDICT.keys():
