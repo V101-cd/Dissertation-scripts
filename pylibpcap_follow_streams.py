@@ -252,8 +252,10 @@ def print_from_terminal():
                 parsed_pcap = pcap(FILENAME)
                 for name, connection in parsed_pcap.get_connections():
                     print(name)
-                    for key in connection:
-                        print(key, [connection[key][i][0] for i in range(len(connection[key]))])
+                    # for key in connection:
+                    if name == "TCP":
+                        for key in connection:
+                            print(key, [connection[key][i][0] for i in range(len(connection[key]))])
 
 
 

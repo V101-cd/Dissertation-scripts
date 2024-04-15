@@ -102,9 +102,6 @@ class StreamsWindow(QScrollArea):
         stream_name_label.setWordWrap(True)
         self.layout.addWidget(stream_name_label)
         self.layout.addWidget(stream_graph)
-        # legend_label = (legend)
-        # legend_label.setWordWrap(True)
-        # self.layout.addWidget(legend)
         packet_list_label = QLabel(packet_list)
         packet_list_label.setWordWrap(True)
         self.layout.addWidget(packet_list_label)
@@ -125,7 +122,6 @@ class StreamsWindow(QScrollArea):
         self.plot_graph.axes.set_xlabel("Packet number")
         self.plot_graph.axes.set_ylabel("Number of packets in the stream")
         return (self.plot_graph, packet_list)
-
 
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
@@ -421,6 +417,38 @@ class header_diagram():
         if self.field_values["verbose"] != None:
             return self.field_values["verbose"]
         return None
+    
+# class tcp_opening_handshakes():
+#     def __init__(self):
+#         self.syn = None
+#         self.synack = None
+#         self.ack = None
+    
+#     def set_syn(self, syn_packet):
+#         if self.syn == None:
+#             self.syn = syn_packet
+    
+#     def set_synack(self, synack_packet):
+#         if self.synack == None:
+#             self.synack = synack_packet
+
+#     def set_ack(self, ack_packet):
+#         if self.ack == None:
+#             self.ack = ack_packet
+
+#     def get_syn(self):
+#         return self.syn
+    
+#     def get_synack(self):
+#         return self.synack
+
+#     def get_ack(self):
+#         return self.ack
+
+#     def get_handshake(self):
+#         if self.syn and self.synack and self.ack:
+#             return (self.syn, self.synack, self.ack)
+#         return None
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -436,12 +464,12 @@ class MainWindow(QMainWindow):
         pagelayout.addLayout(pcap_loader_layout)
         # pagelayout.addLayout(packet_layer_button_layout)
 
-        pcap_ldr_btn = QPushButton("Import PCAP files")
-        pcap_loader_layout.addWidget(pcap_ldr_btn)
-        pcap_ldr_btn.pressed.connect(lambda: self.pcap_loader())
+        self.pcap_ldr_btn = QPushButton("Import PCAP files")
+        pcap_loader_layout.addWidget(self.pcap_ldr_btn)
+        self.pcap_ldr_btn.pressed.connect(lambda: self.pcap_loader())
 
         pagelayout.addLayout(pcap_loading_status_layout)
-        self.pcap_loading_status = QLabel()
+        self.pcap_loading_status = QLabel("Import pcap to get started")
         pcap_loading_status_layout.addWidget(self.pcap_loading_status)
 
         self.packet_visualisation_area = QHBoxLayout()
@@ -455,16 +483,24 @@ class MainWindow(QMainWindow):
         copyright = QLabel("© Vedika Parulkar, April 2024")
         pagelayout.addWidget(copyright, alignment=Qt.AlignmentFlag.AlignRight)
 
+        self.analysis_tools = QVBoxLayout()
         self.streams_btn = QPushButton("View Streams")
         self.streams_btn.hide()
         self.streams_btn.pressed.connect(lambda: self.view_streams())
-        self.packet_visualisation_area.addWidget(self.streams_btn)
+        self.analysis_tools.addWidget(self.streams_btn)
+        self.packet_visualisation_area.addLayout(self.analysis_tools)
+
+        self.tcp_handshakes_btn = QPushButton("View TCP Handshakes")
+        self.tcp_handshakes_btn.hide()
+        self.tcp_handshakes_btn.pressed.connect(lambda: self.view_tcp_handshakes())
+        self.analysis_tools.addWidget(self.tcp_handshakes_btn)
         
         widget = QWidget()
         widget.setLayout(pagelayout)
         self.setCentralWidget(widget)
     
     def pcap_loader(self):
+        self.pcap_ldr_btn.setDisabled(True)
         self.pcap_loading_status.setText("Loading pcap...")
         QApplication.processEvents()
         dialog = QFileDialog()
@@ -474,7 +510,6 @@ class MainWindow(QMainWindow):
         if dialogSuccess:
             self.clear_layout_view()
             self.pcap_loading_status.setText("Parsing PCAP...")
-            QApplication.processEvents()
             QApplication.processEvents()
             selected_files = dialog.selectedFiles()
             self.pcap_name = selected_files[0]
@@ -486,13 +521,22 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             pcap_packets_widget = self.display_pcap_list()
             self.stream_window = StreamsWindow(self.pcap_name)
+            self.tcp_handshakes_window = FrameWindow("TCP Opening Handshakes in " + self.pcap_name)
             for name, connection in self.pcap_connections:
+                if name == "TCP":
+                    self.locate_tcp_handshakes(connection)
                 self.stream_window.add_stream_graph(name, connection)
             print("packets_widget received in calling function")
             self.scroll_area.setWidget(pcap_packets_widget)
             self.scroll_area.show()
             self.streams_btn.show()
+            self.tcp_handshakes_btn.show()
+            self.pcap_ldr_btn.setEnabled(True)
             self.pcap_loading_status.setText("PCAP successfully loaded!")
+            QApplication.processEvents()
+        else:
+            self.pcap_ldr_btn.setEnabled(True)
+            self.pcap_loading_status.setText("Import pcap to get started")
             QApplication.processEvents()
 
     
@@ -522,6 +566,50 @@ class MainWindow(QMainWindow):
             self.pcap_loading_status.setText("Streams diagrams successfully loaded!")
             self.streams_btn.setEnabled(True)
             QApplication.processEvents()
+
+    def view_tcp_handshakes(self):
+        if self.tcp_handshakes_window:
+            self.pcap_loading_status.setText("TCP handshakes loading...")
+            self.tcp_handshakes_btn.setDisabled(True)
+            QApplication.processEvents()
+            self.tcp_handshakes_window.show()
+            self.pcap_loading_status.setText("TCP handshakes successfully loaded!")
+            self.tcp_handshakes_btn.setEnabled(True)
+            QApplication.processEvents()
+
+    def locate_tcp_handshakes(self, tcp_streams):
+        tcp_handshakes = {} ##same port indexing for syn and ack packets; ports flip for synack packets
+        full_handshakes = []
+        all_tcp_packets = []
+        all_tcp_packets_parsed = {}
+        for stream in tcp_streams:
+            for packet in tcp_streams[stream]:
+                all_tcp_packets.append(packet)
+                all_tcp_packets_parsed[int(packet[0])] = [vars(self.pcap_dicts[int(packet[0])][key]) for key in self.pcap_dicts[int(packet[0])] if key == "tcp"][0]
+            all_tcp_packets_parsed = dict(sorted(all_tcp_packets_parsed.items()))
+        for packet_num in all_tcp_packets_parsed:
+            packet = all_tcp_packets_parsed[packet_num]
+            if packet_num in [1449, 1484, 1524, 1525, 1526]:
+                print(packet_num, packet['syn'], packet['ack'], packet['srcport'], packet['dstport'])
+            if packet['syn'] == 1 and packet['ack'] == 0:
+                tcp_handshakes[(packet['srcport'], packet['dstport'])] = {'syn':packet_num, 'synack':None, 'ack':None}
+            if packet['syn'] == 1 and packet['ack'] == 1:
+                if (packet['dstport'], packet['srcport']) in tcp_handshakes:
+                    if (tcp_handshakes[(packet['dstport'], packet['srcport'])])['syn'] != None and (tcp_handshakes[(packet['dstport'], packet['srcport'])])['synack'] == None and (tcp_handshakes[(packet['dstport'], packet['srcport'])])['ack'] == None:
+                        tcp_handshakes[(packet['dstport'], packet['srcport'])]['synack'] = packet_num
+            if packet['syn'] == 0 and packet['ack'] == 1:
+                if (packet['srcport'], packet['dstport']) in tcp_handshakes:
+                    if (tcp_handshakes[(packet['srcport'], packet['dstport'])])['syn'] != None and (tcp_handshakes[(packet['srcport'], packet['dstport'])])['synack'] != None and (tcp_handshakes[(packet['srcport'], packet['dstport'])])['ack'] == None:
+                        tcp_handshakes[(packet['srcport'], packet['dstport'])]['ack'] = packet_num
+    
+        for handshake in tcp_handshakes:
+            handshake_message = f"SYN: {tcp_handshakes[handshake]['syn']} \n"
+            if tcp_handshakes[handshake]['synack'] != None:
+                handshake_message += f"SYNACK: {tcp_handshakes[handshake]['synack']} \n"
+                if tcp_handshakes[handshake]['ack'] != None:
+                    handshake_message += f"ACK: {tcp_handshakes[handshake]['ack']} \n"
+            self.tcp_handshakes_window.add_verbose_label(f"TCP opening handshake between port {handshake[0]} and port {handshake[1]}\n{handshake_message}")
+
         
     def packet_btn_clicked(self):
         sender = self.sender()
@@ -560,18 +648,6 @@ class MainWindow(QMainWindow):
 
         self.header_window.show()
         print(packet_num, packet_header_attributes)
-        
-    def get_Ethernet_headers(self, packet_info):
-        print(packet_info.split('('))
-
-    def activate_tab_1(self):
-        self.stacklayout.setCurrentIndex(0)
-
-    def activate_tab_2(self):
-        self.stacklayout.setCurrentIndex(1)
-
-    def activate_tab_3(self):
-        self.stacklayout.setCurrentIndex(2)
 
     def view_header_diagram(self, header_type, field_values):
         if header_type == "ethernet":
