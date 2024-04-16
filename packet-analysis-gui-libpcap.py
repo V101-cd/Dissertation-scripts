@@ -97,8 +97,8 @@ class StreamsWindow(QScrollArea):
     #     return (self.plot_graph, x)
 
     def add_stream_graph(self, stream_name, connection_data):
-        stream_graph, packet_list = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
-        stream_name_label = QLabel(stream_name + " :")
+        stream_graph, packet_list, total_packets = self.generate_graph(connection_data)  ##change to [connection[key][i][0] for i in range(len(connection[key]))]
+        stream_name_label = QLabel(f"{stream_name}:\n{total_packets} packets in total")
         stream_name_label.setWordWrap(True)
         self.layout.addWidget(stream_name_label)
         self.layout.addWidget(stream_graph)
@@ -109,6 +109,7 @@ class StreamsWindow(QScrollArea):
     def generate_graph(self, connection_data):
         self.plot_graph = MatplotlibCanvas(self)
         packet_list = ""
+        total_packets = 0
         for key in connection_data:
             x = [connection_data[key][i][0] for i in range(len(connection_data[key]))]
             y = [i+1 for i in range(len(connection_data[key]))]
@@ -119,9 +120,10 @@ class StreamsWindow(QScrollArea):
             for packet in x:
                 packet_list += str(packet) + ", "
             packet_list = packet_list[:-2] + "\n"
+            total_packets += len(x)
         self.plot_graph.axes.set_xlabel("Packet number")
         self.plot_graph.axes.set_ylabel("Number of packets in the stream")
-        return (self.plot_graph, packet_list)
+        return (self.plot_graph, packet_list, total_packets)
 
 class header_diagram():
     def __init__(self, diagram_location, header_type, field_values, extension_header_diagram = None):
@@ -603,11 +605,11 @@ class MainWindow(QMainWindow):
                         tcp_handshakes[(packet['srcport'], packet['dstport'])]['ack'] = packet_num
     
         for handshake in tcp_handshakes:
-            handshake_message = f"SYN: {tcp_handshakes[handshake]['syn']} \n"
+            handshake_message = f"SYN: packet {tcp_handshakes[handshake]['syn']} \n"
             if tcp_handshakes[handshake]['synack'] != None:
-                handshake_message += f"SYNACK: {tcp_handshakes[handshake]['synack']} \n"
+                handshake_message += f"SYNACK: packet {tcp_handshakes[handshake]['synack']} \n"
                 if tcp_handshakes[handshake]['ack'] != None:
-                    handshake_message += f"ACK: {tcp_handshakes[handshake]['ack']} \n"
+                    handshake_message += f"ACK: packet {tcp_handshakes[handshake]['ack']} \n"
             self.tcp_handshakes_window.add_verbose_label(f"TCP opening handshake between port {handshake[0]} and port {handshake[1]}\n{handshake_message}")
 
         
