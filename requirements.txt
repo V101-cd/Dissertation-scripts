@@ -1,0 +1,4 @@
+matplotlib==3.8.4
+PyQt6
+PyQt6_sip==13.4.1
+python_libpcap==0.4.2
